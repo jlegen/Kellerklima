@@ -24,7 +24,6 @@
 #else
  #include <avr/pgmspace.h>
 #endif
-//#include <digitalWriteFast.h> //saves 90 bytes of flash, well...
 #include <Wire.h>
 #include <ClickEncoder.h>
 #include <TimerOne.h>
