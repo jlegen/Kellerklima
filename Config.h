@@ -1,7 +1,7 @@
 //
 // most configurable stuff here...
 //
-#define VERSION  1.1
+#define VERSION  1.2
 
 #define DHTPIN_I 8     // Pin Innensensor S1
 #define DHTPIN_O 9     // Pin Aussensensor S2
@@ -21,7 +21,7 @@
 #ifdef HAVE_ESPLINK
 //#define HAVE_ESPWEB 1
  // Change to your own Thingspeak API key
- char *api_key = "J5W86CLMKM50MPPG";
+ char *api_key = "XXX";
  char *api_host = "184.106.153.149";
  #define BUFLEN 266
  #define SEND_MAX_RETRY 5
