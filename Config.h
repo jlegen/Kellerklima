@@ -20,7 +20,7 @@
 #ifdef HAVE_ESPLINK
 //#define HAVE_ESPWEB 1
  // Change to your own Thingspeak API key
- char *api_key = "X436YTGNCGV1SFG8";
+ char *api_key = "XXX";
  char *api_host = "184.106.153.149";
  #define BUFLEN 266
  #define SEND_MAX_RETRY 5
