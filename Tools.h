@@ -361,7 +361,7 @@ void set_relay(uint8_t relay, bool trig) {
 #ifdef RelaysLowActive
   digitalWrite(my_relays[relay], !trig);  // set = true => relais = LOW
 #else
-  digitalWriteFast(my_relays[relay], trig);  // set = true => relais = LOW
+  digitalWrite(my_relays[relay], trig);  // set = true => relais = LOW
 #endif
  if (trig && !is_dev_on[relay]) {
   dev_start = millis();                     // store start time
@@ -494,6 +494,7 @@ uint32_t rtime =0;
     Serial.println(F("----------------"));
 #endif
 }
+
 /*
 void lcd_message(char* m1, char* m2) {
   lcd.clear();

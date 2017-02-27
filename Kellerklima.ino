@@ -18,13 +18,14 @@
 //   - BME280 sensors
 //   - DHT11 sensors
 //
+// Software configured for Box 1 (Ulf)
 
 #if defined(ESP8266)
  #include <pgmspace.h>
 #else
  #include <avr/pgmspace.h>
 #endif
-//#include <digitalWriteFast.h> //saves 90 bytes of flash, well...
+//#include <digitalWriteFast.h> 
 #include <Wire.h>
 #include <ClickEncoder.h>
 #include <TimerOne.h>
@@ -138,7 +139,7 @@ void setup() {
 #ifdef LCD_I2C
   lcd.begin();
 #else
-  pinModeFast(LCD_LED, OUTPUT);
+  pinMode(LCD_LED, OUTPUT);
   lcd.begin(LCD_CHARS, LCD_LINES);
 #endif
   lcd.createChar(IconHeart, heart);

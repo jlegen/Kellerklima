@@ -1,16 +1,15 @@
 //
 // most configurable stuff here...
 //
-#define VERSION  1.1
+#define VERSION  1.2
 
-#define DHTPIN_I 8     // Pin Innensensor S1
-#define DHTPIN_O 9     // Pin Aussensensor S2
+#define DHTPIN_I 10     // Pin Innensensor S1
+#define DHTPIN_O 11     // Pin Aussensensor S2
 //#define SENSI2C1 0x76 // use I2C sensors => BME280 breakouts
 //#define SENSI2C2 0x77
-#define Relais_L 5     // Pin Lüfter/Klappe
-#define Relais_E 6     // Pin Entfeuchter
+#define Relais_L 2     // Pin Lüfter/Klappe
+#define Relais_E 3     // Pin Entfeuchter
 #define ActLED 13      // Pin LED (Messung)
-//#define INTERVAL 60000 // Messintervall 60s (now customizable)
 #define AINTV 500      // Intervall für Aktivitätsanzeige
 #define BACKLIGHT_OFF 180000 // switch off backlight (3min)
 
@@ -21,7 +20,7 @@
 #ifdef HAVE_ESPLINK
 //#define HAVE_ESPWEB 1
  // Change to your own Thingspeak API key
- char *api_key = "J5W86CLMKM50MPPG";
+ char *api_key = "X436YTGNCGV1SFG8";
  char *api_host = "184.106.153.149";
  #define BUFLEN 266
  #define SEND_MAX_RETRY 5
@@ -29,19 +28,19 @@
 #endif
 
 // LCD
-#define LCD_I2C  // use I2C LCD - parallel otherwise
+//#define LCD_I2C  // use I2C LCD - parallel otherwise
 // I2C LCD config
 #define LCD_ADDR 0x27
 #define LCD_CHARS 16
 #define LCD_LINES  2
 // parallel LCD config
-#define LCD_RS     2 
-#define LCD_EN     3
-#define LCD_D4     14   // A0
-#define LCD_D5     15   // A1
-#define LCD_D6     16   // A2
-#define LCD_D7     17   // A3
-#define LCD_LED    4
+#define LCD_RS     4 
+#define LCD_EN     5
+#define LCD_D4     6   
+#define LCD_D5     7   
+#define LCD_D6     8   
+#define LCD_D7     9   
+#define LCD_LED    17
 // LCD R/W pin to ground
 // LCD VSS pin to ground
 // LCD VCC pin to 5V
@@ -75,9 +74,9 @@
 // ClickEncoder 
 // https://github.com/0xPIT/
 //
-#define r_button 10                //rotary encoder pushbutton, PB1
-#define r_pha 11                   //rotary encoder phase A, PB2
-#define r_phb 12                   //rotary encoder phase B, PB3
+#define r_button 16                //rotary encoder pushbutton, PB1
+#define r_pha 15                   //rotary encoder phase A, PB2
+#define r_phb 14                   //rotary encoder phase B, PB3
 
 
 // define language
@@ -193,7 +192,7 @@ int16_t encLastAbsolute = -1;
 ClickEncoder Encoder(r_pha, r_phb, r_button, 2); // 2,3,4 = clicks per step (notches)
 
 // Pieper
-#define BUZZER 7
+#define BUZZER 12
 
 uint8_t my_relays[] = {Relais_L, Relais_E};
 
@@ -238,11 +237,9 @@ uint8_t lcd_on = true;    // is backlight on?
 
 // NB: HUM_MAX-Hysteresis = hyst_off
 
-
-
-// initial defaults
+// initial defaults - values of defined params above
 int16_t cust_params[11] = {60, 12, 2,  3, 1, 0, 120, 120, 0, 1, 60};
-int16_t last_value = 0;
+int16_t last_value = 0; // menu item helper
 
 #define TEMP_HYSTERESIS 1  // universal hysteresis to be used for temperature measures (min. inner/outer temp)
 
@@ -345,5 +342,3 @@ TWBR   prescaler   Frequency
 
 
  */
-
-
