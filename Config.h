@@ -193,7 +193,12 @@ int16_t encLastAbsolute = -1;
 ClickEncoder Encoder(r_pha, r_phb, r_button, 2); // 2,3,4 = clicks per step (notches)
 
 // Pieper
-#define BUZZER 7
+#define BUZZER 7 // pin for buzzer
+#define TONE_ON digitalWrite(BUZZER, true) 
+#define TONE_OFF digitalWrite(BUZZER, false) 
+//passive buzzer - only when on PWM pin! (1, 9, 10, 12, 13)
+//#define TONE_ON tone(BUZZER, 1200)
+//#define TONE_OFF noTone(BUZZER)
 
 uint8_t my_relays[] = {Relais_L, Relais_E};
 

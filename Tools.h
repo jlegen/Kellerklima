@@ -322,21 +322,20 @@ void buzzer(uint16_t dura) {
  if (cust_params[HAVE_BEEPER]) {
   if (dura == 0) { // 0 = Alert
     while ((millis() - curr_millis) <= 3000) {
-     digitalWrite(BUZZER, true);
+     TONE_ON;
      delay(400);
-     digitalWrite(BUZZER, false);
+     TONE_OFF;
      delay(400);
     }
   } else {
-    digitalWrite(BUZZER, true);
+    TONE_ON;
     delay(dura);
-    digitalWrite(BUZZER, false);
+    TONE_OFF;
     delay(dura);
-    digitalWrite(BUZZER, true);
+    TONE_ON;
     delay(dura);
-    digitalWrite(BUZZER, false);
+    TONE_OFF;
   }
- }
 #endif
 }
 
