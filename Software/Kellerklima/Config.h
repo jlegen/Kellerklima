@@ -7,6 +7,8 @@
 #define DHTPIN_O 9     // Pin Aussensensor S2
 //#define SENSI2C1 0x76 // use I2C sensors => BME280 breakouts
 //#define SENSI2C2 0x77
+//#define SHTI2C1 0x44  // use I2C sensors => SHT31 breakouts
+//#define SHTI2C2 0x45
 #define Relais_L 5     // Pin Lüfter/Klappe
 #define Relais_E 6     // Pin Entfeuchter
 #define ActLED 13      // Pin LED (Messung)

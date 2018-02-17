@@ -336,6 +336,7 @@ void buzzer(uint16_t dura) {
     delay(dura);
     TONE_OFF;
   }
+ }
 #endif
 }
 

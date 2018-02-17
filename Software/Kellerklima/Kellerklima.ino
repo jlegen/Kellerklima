@@ -12,10 +12,11 @@
 //   - DHT22 sensors
 //   - I2C-LCD 16x2
 //   - parallel LCD 16x2
-//   - ESP-07 with esp-link 3.0.14
+//   - ESP-01 with esp-link 3.0.14 (using 32Mbit flash)
 // prepared for (untested):
 //   - LCDs of other sizes
 //   - BME280 sensors
+//   - SHT31 sensors
 //   - DHT11 sensors
 //
 
@@ -34,21 +35,26 @@
  #include "DHT.h"
 #endif
 #ifdef SENSI2C1
- #include "cactus_io_BME280_I2C.h";
+ #include "cactus_io_BME280_I2C.h";         // http://cactus.io/hookups/sensors/barometric/bme280/hookup-arduino-to-bme280-barometric-pressure-sensor
+ #define I2C_SENSOR 1
+#endif
+#ifdef SHTI2C1
+ #include "cactus_io_SHT31.h";              // http://cactus.io/hookups/sensors/temperature-humidity/sht31/hookup-arduino-to-sensirion-SHT31-temp-humidity-sensor
+ #define I2C_SENSOR 1
 #endif
 
 // I2C LCD
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 #ifdef LCD_I2C
- #include <LiquidCrystal_I2C.h>
+ #include <LiquidCrystal_I2C.h>             // https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
  LiquidCrystal_I2C lcd(LCD_ADDR, LCD_CHARS, LCD_LINES);
 #else
  #include <LiquidCrystal.h>
  LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 #endif
 
-#include "Tools.h"
 #include "Debug.h"
+#include "Tools.h"
 
 // esp-link connected
 #ifdef HAVE_ESPLINK
@@ -81,8 +87,12 @@
  DHT dht_o(DHTPIN_O, DHTTYPE_O);
 #endif
 #ifdef SENSI2C1
- BME280_I2C bme_i(SENSI2C1); 
- BME280_I2C bme_o(SENSI2C2); 
+ BME280_I2C sens_i(SENSI2C1); 
+ BME280_I2C sens_o(SENSI2C2); 
+#endif
+#ifdef SHTI2C1
+ cactus_io_SHT31 sens_i(SHTI2C1); 
+ cactus_io_SHT31 sens_o(SHTI2C2); 
 #endif
 
 
@@ -259,9 +269,22 @@ void setup() {
   dht_i.begin();
   dht_o.begin();
 #endif
-#ifdef SENSI2C1
- bme_i.begin();
- bme_o.begin();
+#ifdef I2C_SENSOR
+ if (!sens_i.begin()) {
+      DEBUG_PRINTLN(F("Failed to read from indoor sensor (S1)!"));
+      FPL(OutErrSensor);
+      lcd.print("S1!");
+      buzzer(0);
+ }
+ if (!sens_o.begin()) {
+      DEBUG_PRINTLN(F("Failed to read from outdoor sensor (S2)!"));
+      FPL(OutErrSensor);
+      lcd.print("S2!");
+      buzzer(0);
+ }
+ // calibration
+ //sens_i.setTempCal(-1);// Temp was reading high so subtract 1 degree
+ //sens_o.setTempCal(-1);// Temp was reading high so subtract 1 degree
 #endif
 
 #ifdef HAVE_ESPLINK
@@ -461,12 +484,12 @@ void do_measure(void) {
     temp_i = dht_i.readTemperature();
     temp_o = dht_o.readTemperature();
 #endif
-#ifdef SENSI2C1
-    // BME280
-    hum_i = bme_i.getHumidity();
-    hum_o = bme_o.getHumidity();
-    temp_i = bme_i.getTemperature_C();
-    temp_o = bme_o.getTemperature_C();
+#ifdef I2C_SENSOR
+    // SHT31, BME280
+    hum_i = sens_i.getHumidity();
+    hum_o = sens_o.getHumidity();
+    temp_i = sens_i.getTemperature_C();
+    temp_o = sens_o.getTemperature_C();
 #endif
 
 #ifdef FAKE
