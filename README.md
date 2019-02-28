@@ -17,7 +17,10 @@ This ESP-01 module also allows to remotely flash the arduino code of the control
 Libraries used are commented in the code.
 
 Update: It turned out that the DHT22 sensors are cr*p, they "wear out" quite quickly, showing wrong humidity data after a few weeks.
-Therefore it is also possible to use I2C sensors (BME280, SHT31) using a I2C bus extender, to allow for the long(er) wires i needed.
+To be able to make use of better quality I2C sensors like BME280 or SHT31, i added an I2C booster/busd driver IC to allow for the long(er) wires i needed. For me, 10m do work just fine, there are reports that up to 100m are possible, too.
+Additionally, i did not manage to get the SLIP protocol running reliably using the ESP-Link, but i still regard this as useful, since the arduino not only can be flashed "OTA" using ESP-link, the new version also allows to monitor the arduino's activities using EPS-link's "µC Console", and the whole thing can be controlled remotely using a set of commands to set temperatures and other parameters. 
+Next hardware revision should probably use an ESP module as controller... 
+
 
 # Gallery
 
