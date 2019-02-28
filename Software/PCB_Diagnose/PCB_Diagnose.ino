@@ -1,10 +1,10 @@
 
-#define DHTPIN_I 10     // Pin Innensensor S1
-#define DHTPIN_O 11     // Pin Aussensensor S2
+//#define DHTPIN_I 10     // Pin Innensensor S1
+//#define DHTPIN_O 11     // Pin Aussensensor S2
 //#define SENSI2C1 0x76 // use I2C sensors => BME280 breakouts
 //#define SENSI2C2 0x77
-//#define SHTI2C1 0x44 // use I2C sensors => SHT31 breakouts
-//#define SHTI2C2 0x45
+#define SHTI2C1 0x44 // use I2C sensors => SHT31 breakouts
+#define SHTI2C2 0x45
 
 //#define TWI_FREQ 10000L;
 #include <Wire.h>
@@ -228,7 +228,7 @@ void setup() {
  pinMode(BUZZER, OUTPUT);
 #endif
 
-  Wire.begin(); // I2C-Scanner
+  //Wire.begin(); // I2C-Scanner
 
   //Wire.setClock(400000L) 
   //Wire.setClock(100000L) // default
@@ -262,7 +262,10 @@ void setup() {
   lcd.clear();
   //lcd.backlight();
   LCD_ON;
-  
+  delay(1000);
+  LCD_OFF;
+  delay(2000);
+  LCD_ON;
   //         0123456789012345
   lcd.setCursor(0, 0);
   lcd.print("LCD ");
@@ -328,7 +331,7 @@ void loop() {
     temp_o = sens_o.temperature_C;
     */
 #endif
-#ifdef SENSI2C1
+#ifdef I2C_SENSOR
     // BME280, SHT31
     // setTempCal(float) Allows you to define a temp calibration offset if it reads high
     hum_i = sens_i.getHumidity();
@@ -336,7 +339,6 @@ void loop() {
     temp_i = sens_i.getTemperature_C();
     temp_o = sens_o.getTemperature_C();
 #endif
-    digitalWrite(ActLED, false);
 
     Serial.print("Sensor 1 Temp: ");
     Serial.println(temp_i);
@@ -396,6 +398,7 @@ void loop() {
     set_relay(1, false);
     lcd.setCursor(0, 1);
     lcd.print("Relay 2 Off!");
+    delay(1000);
     break;
 
     case ClickEncoder::DoubleClicked:
@@ -411,14 +414,15 @@ void loop() {
     lcd.print(hum_o,1);
     lcd.print(" ");
     lcdPrintDouble(temp_o, 1, 4);
-
+    delay(2000);
     break;
 
   }
 
 i2c_nDevices =0 ;
 
-if (milliMil >= (unsigned long)3000 ) {
+if (milliMil >= (unsigned long)5000 ) {
+  lcd.clear();
   for(i2c_address = 1; i2c_address < 127; i2c_address++ ) 
   {
     Wire.beginTransmission(i2c_address);
@@ -427,7 +431,6 @@ if (milliMil >= (unsigned long)3000 ) {
     if (i2c_error == 0)
     {
       //Serial.print("I2C device found at address 0x");
-      lcd.clear();
       lcd.print("I2C device: ");
       if (i2c_address<16) 
         lcd.print("0");
@@ -436,8 +439,7 @@ if (milliMil >= (unsigned long)3000 ) {
 
       i2c_nDevices++;
     }
-    else if (i2c_error==4) 
-    {
+    else if (i2c_error==4) {
       lcd.print("error at 0x");
       if (i2c_address<16) 
         lcd.print("0");
@@ -445,12 +447,15 @@ if (milliMil >= (unsigned long)3000 ) {
     }    
   }
   if (i2c_nDevices == 0) {
-    lcd.print("No I2C devices found");
+    lcd.print("No I2C-dev found");
   } else {
-    lcd.print("No. I2C devices: ");
+    lcd.print("I2C devices: ");
     lcd.print(i2c_nDevices);
   }
 }
+delay(300);
+digitalWrite(ActLED, false);
+
 
 
 }

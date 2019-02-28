@@ -1,5 +1,5 @@
-// Lüftungssteuerung V1.0
-// (c)2016 jleg99@gmail.com
+// Lüftungssteuerung V1.2
+// (c)2016-19 jleg99@gmail.com
 //
 // adapt settings in Config.h
 //
@@ -10,44 +10,47 @@
 // 
 // tested with:
 //   - DHT22 sensors
+//   - SHT31 sensors
 //   - I2C-LCD 16x2
 //   - parallel LCD 16x2
 //   - ESP-01 with esp-link 3.0.14 (using 32Mbit flash)
 // prepared for (untested):
 //   - LCDs of other sizes
 //   - BME280 sensors
-//   - SHT31 sensors
-//   - DHT11 sensors
 //
 
-#if defined(ESP8266)
- #include <pgmspace.h>
-#else
- #include <avr/pgmspace.h>
-#endif
+#include <avr/pgmspace.h>
 #include <Wire.h>
-#include <ClickEncoder.h>
-#include <TimerOne.h>
-#include <Menu.h>
+#include <ClickEncoder.h>                   // https://github.com/0xPIT/encoder
+#include <TimerOne.h>                       // https://github.com/PaulStoffregen/TimerOne
+#include <Menu.h>                           // https://github.com/0xPIT/menu
 #include <EEPROM.h>
+
 #include "Config.h"
-#ifdef DHTPIN_I
+
+#if defined DHTPIN_I || defined DHTPIN_O
  #include "DHT.h"
 #endif
-#ifdef SENSI2C1
+#if defined BMEI2C1 || defined BMEI2C2
  #include "cactus_io_BME280_I2C.h";         // http://cactus.io/hookups/sensors/barometric/bme280/hookup-arduino-to-bme280-barometric-pressure-sensor
- #define I2C_SENSOR 1
 #endif
-#ifdef SHTI2C1
+#if defined SHTI2C1 || defined SHTI2C2
  #include "cactus_io_SHT31.h";              // http://cactus.io/hookups/sensors/temperature-humidity/sht31/hookup-arduino-to-sensirion-SHT31-temp-humidity-sensor
- #define I2C_SENSOR 1
 #endif
+
+#if defined BMEI2C1 || defined SHTI2C1
+ #define I2C_SENSOR1 1
+#endif
+#if defined BMEI2C2 || defined SHTI2C2
+ #define I2C_SENSOR2 1
+#endif
+
 
 // I2C LCD
 // Set the LCD address to 0x27 for a 16 chars and 2 line display
 #ifdef LCD_I2C
- #include <LiquidCrystal_I2C.h>             // https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library
- LiquidCrystal_I2C lcd(LCD_ADDR, LCD_CHARS, LCD_LINES);
+ #include <LiquidCrystal_I2C.h>             // https://bitbucket.org/fmalpartida/new-liquidcrystal/overview (old: https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library)
+ LiquidCrystal_I2C lcd(LCD_ADDR, LCD_LED, POSITIVE); //, LCD_CHARS, LCD_LINES);
 #else
  #include <LiquidCrystal.h>
  LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
@@ -65,15 +68,11 @@
 #ifdef DEBUG
  ELClient esp(&Serial, &Serial);
 #else
- ELClient esp(&Serial); // suspected to crash el-client?
+ // ELClient esp(&Serial); // suspected to crash el-client?
+ ELClient esp(&Serial, &Serial);
 #endif
  // Initialize a REST client on the connection to esp-link
  ELClientRest rest(&esp);
- // Initialize the Web-Server client
- #ifdef HAVE_ESPWEB
-  #include <ELClientWebServer.h>
-  ELClientWebServer webServer(&esp);
- #endif
 #endif
 
 
@@ -84,14 +83,20 @@
 
 #ifdef DHTPIN_I
  DHT dht_i(DHTPIN_I, DHTTYPE_I);
+#endif
+#ifdef DHTPIN_O
  DHT dht_o(DHTPIN_O, DHTTYPE_O);
 #endif
-#ifdef SENSI2C1
- BME280_I2C sens_i(SENSI2C1); 
- BME280_I2C sens_o(SENSI2C2); 
+#ifdef BMEI2C1
+ BME280_I2C sens_i(BMEI2C1); 
+#endif
+#ifdef BMEI2C2
+ BME280_I2C sens_o(BMEI2C2); 
 #endif
 #ifdef SHTI2C1
  cactus_io_SHT31 sens_i(SHTI2C1); 
+#endif
+#ifdef SHTI2C2
  cactus_io_SHT31 sens_o(SHTI2C2); 
 #endif
 
@@ -117,9 +122,6 @@ void sprint_report(void);
 
 #ifdef HAVE_ESPLINK
  #include "Esplink.h"
- #ifdef HAVE_ESPWEB
-   #include "HTML_Pages.h"
- #endif
 #endif
 
 void setup() {
@@ -131,23 +133,19 @@ void setup() {
 #endif
 
   // Alles aus
-  set_relay(0, false);              // Lüfter ausschalten
-  set_relay(1, false);              // Entf. ausschalten
+//  set_relay(0, false);              // Lüfter ausschalten
+//  set_relay(1, false);              // Entf. ausschalten
 
-  Timer1.initialize(1000);
+  Timer1.initialize(4000);  // 1000000 = 1s
   Timer1.attachInterrupt(timerIsr);
 
   OUT_SERIAL(SERIAL_BAUD); // initialize only for if DEBUG or HAVE_ESPLINK
 
-#ifdef HAVE_ESPLINK 
- delay(2000); // wait for esp-link monitor
-#endif
-
   // LCD
 #ifdef LCD_I2C
-  lcd.begin();
+  lcd.begin(LCD_CHARS, LCD_LINES);
 #else
-  pinModeFast(LCD_LED, OUTPUT);
+  pinMode(LCD_LED, OUTPUT);
   lcd.begin(LCD_CHARS, LCD_LINES);
 #endif
   lcd.createChar(IconHeart, heart);
@@ -157,8 +155,7 @@ void setup() {
   lcd.createChar(IconBlock, block);
 
   lcd.clear();
-  //lcd.backlight();
-  LCD_ON;
+  trigger_backlight();
   
   //         0123456789012345
   FPL(HEADER1);
@@ -179,7 +176,9 @@ void setup() {
   ClickEncoder::Button b = Encoder.getButton();          // pressed during Startup?
   lcd.setCursor(0, 1);
   lcd.write(IconRight);
-  if (EEPROM.read(EEPROM_ADDR) < 10 || EEPROM.read(EEPROM_ADDR) > 100 || (b != ClickEncoder::Open)) 
+  int16_t val = word(EEPROM.read(EEPROM_ADDR), EEPROM.read(EEPROM_ADDR+1));
+  //if (word(EEPROM.read(EEPROM_ADDR), EEPROM.read(EEPROM_ADDR+1)) < 10 || word(EEPROM.read(EEPROM_ADDR), EEPROM.read(EEPROM_ADDR+1)) > 100 || (b != ClickEncoder::Open)) 
+  if (val < 10 || val>100 || (b != ClickEncoder::Open))
   {
     write_to_eeprom();
     FPL(OutDefaults);
@@ -188,13 +187,9 @@ void setup() {
     read_from_eeprom();
     FPL(OutLoaded);
 #ifndef HAVE_ESPLINK
-    cust_params[HAVE_WIFI] = 0;
+    cust_params[HAVE_WIFI] = 0;  // override eeprom in case of changed ESP-link config
 #endif
-/*
-    if (cust_params[HAVE_WIFI] >1) cust_params[HAVE_WIFI] = 0;
-    if (cust_params[HAVE_BEEPER] >1) cust_params[HAVE_BEEPER] = 1;
-    if (cust_params[INTERVAL] <10) cust_params[INTERVAL] = 60;
-*/
+
 #ifdef FAKE
     cust_params[HAVE_DEHYD] = 0;
     cust_params[MAX_LRUN] = 6;
@@ -207,47 +202,10 @@ void setup() {
   OUT_SER(F("Prima Kellerklima "));
   OUT_SERLN(VERSION);
 
-  OUT_SER(F("Entfeuchter angeschlossen: "));
-  OUT_SERLN(cust_params[HAVE_DEHYD]);
-  OUT_SER(F("Wifi Cloud-Upload aktiv: "));
-  OUT_SERLN(cust_params[HAVE_WIFI]);
-  OUT_SER(F("Beeper enabled: "));
-  OUT_SERLN(cust_params[HAVE_BEEPER]);
-  OUT_SER(F("Messintervall: "));
-  OUT_SERLN(cust_params[INTERVAL]);
-
-  OUT_SER(F("Max. Feuchte/Startwert: "));
-  OUT_SER(cust_params[HUM_MAX]);
-  OUT_SERLN("%");
-  OUT_SER(F("Min. Innentemperatur: "));
-  OUT_SER(cust_params[T_IN_MIN]);
-  OUT_SERLN("*C");
-  OUT_SER(F("Min. Aussentemperatur: "));
-  OUT_SER(cust_params[T_OUT_MIN]);
-  OUT_SERLN("*C");
-  OUT_SER(F("Hysterese ein: "));
-  OUT_SER(cust_params[HYSTERESIS_ON]);
-  OUT_SERLN("*C");
-  OUT_SER(F("Hysterese aus: "));
-  OUT_SER(cust_params[HYSTERESIS_OFF]);
-  OUT_SERLN("*C");
-  OUT_SER(F("Max. Luefterlaufzeit: "));
-  OUT_SER(cust_params[MAX_LRUN]);
-  OUT_SERLN(F("Min."));
-  //Serial.print(F("Max. Entfeuchterlaufzeit: "));
-  //Serial.print(d_maxrun);
-  //Serial.println("Min.");
-  OUT_SER(F("Luefterzwangspause: "));
-  OUT_SER(cust_params[L_PAUSE]);
-  OUT_SERLN(F("Min."));
-  OUT_SER(F("Free RAM is "));
-  OUT_SERLN((int)freeRam);
-//  OUT_SER(" / ");
-//  OUT_SERLN((int)freeRam2);
-  OUT_SERLN(F("----------------------------------------"));
-
+  sprint_report();
+ 
   engine = new Menu::Engine(&Menu::NullItem);
-  menuExit(Menu::actionNone); // reset to initial state
+  //menuExit(Menu::actionNone); // reset to initial state
 
   // LCD
   //lcd.home();
@@ -267,15 +225,19 @@ void setup() {
   // initialize Sensors
 #ifdef DHTPIN_I
   dht_i.begin();
+#endif
+#ifdef DHTPIN_O
   dht_o.begin();
 #endif
-#ifdef I2C_SENSOR
+#ifdef I2C_SENSOR1
  if (!sens_i.begin()) {
       DEBUG_PRINTLN(F("Failed to read from indoor sensor (S1)!"));
       FPL(OutErrSensor);
       lcd.print("S1!");
       buzzer(0);
  }
+#endif
+#ifdef I2C_SENSOR2
  if (!sens_o.begin()) {
       DEBUG_PRINTLN(F("Failed to read from outdoor sensor (S2)!"));
       FPL(OutErrSensor);
@@ -288,16 +250,23 @@ void setup() {
 #endif
 
 #ifdef HAVE_ESPLINK
- //esp.resetCb = resetCb;
  setup_wifi();
- #ifdef HAVE_ESPWEB
-  setup_Init();
- #endif
 #endif
+
+  OUT_SERLN(F("---------- END OF SETUP PHASE ----------"));
+  delay(2000);
 }
 
 void loop() { 
 int16_t *iValue;
+//uint32_t last_days;
+
+#ifdef HAVE_ESPLINK
+// process ESP-link events
+  if(cust_params[HAVE_WIFI]) {   
+    esp.Process();
+  }
+#endif
 
   curr_millis = millis();
 /* not necessary
@@ -309,8 +278,13 @@ int16_t *iValue;
       DEBUG_PRINTLN(F("Timer: millis wrapped around!"));
   }
 */
-  milliMil = (unsigned long) curr_millis - prev_millis;
+  milliMil = curr_millis - prev_millis;
 
+  if ( ((millis()/60000) % 60 == 0) && (((millis()/60000)/60 % 24) == 0)) { // reset daily runtime counters
+    daily_run[FAN] = 0;
+    daily_run[DEHYD] = 0;
+  }
+  
   // handle encoder
   encMovement = Encoder.getValue();
   if (encMovement) {
@@ -455,14 +429,67 @@ int16_t *iValue;
 
   }
 
-  if (lcd_on && (curr_millis - lcd_millis) >= BACKLIGHT_OFF) {   // turn off LCD backlight 
-    //lcd_on = false;
+  if (lcd_on && ((curr_millis - lcd_millis) >= BACKLIGHT_OFF)) {   // turn off LCD backlight 
     LCD_OFF;
     if (systemState != State::Default) {
       systemState = State::Default;
       menuExit(Menu::actionNone); // reset to initial state
     }
   }
+#ifdef SERIAL_OUT
+ if (Serial.available()) {
+  String cmd = Serial.readString(); // read the incoming command
+  cmd.trim();
+  int16_t val = get_value(cmd);
+  uint8_t c = get_cmd(cmd);
+
+  if (c == FAN || c == DEHYD) control_override = val; //switch commands; set/reset override (val= 0/1)
+
+  switch (c) {
+    case FAN:
+     set_relay(FAN, val);
+    break;
+    case DEHYD:
+     set_relay(DEHYD, val);
+    break;
+    case 2:
+     cust_params[HUM_MAX] = val;
+    break;
+    case 3:
+     cust_params[T_IN_MIN] = val;
+    break;
+    case 4:
+     cust_params[T_OUT_MIN] = val;
+    break;
+    case 5:
+     cust_params[MAX_PER_24H] = val;
+    break;
+    case 6:
+     cust_params[INTERVAL] = val;
+    break;
+    case 7:
+     write_to_eeprom();
+    break;
+    case 8:
+     out_help();
+    break;
+  }
+
+  if (c >= 0 && c < 9) {
+    Serial.print("\n");
+    Serial.print(get_help(c));
+    if (val != -1000) {
+      Serial.print(": ");
+      Serial.print(val);
+    }
+    Serial.print("\n");
+  } else {
+    Serial.println(F("\nBefehl unbekannt"));
+  }
+
+ }
+#endif
+
 }
 
 void do_measure(void) {
@@ -478,18 +505,28 @@ void do_measure(void) {
     // DHT22
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    hum_i = dht_i.readHumidity();
-    hum_o = dht_o.readHumidity();
-    // Read temperature as Celsius (the default)
+    hum_i  = dht_i.readHumidity();
     temp_i = dht_i.readTemperature();
+#endif
+#ifdef DHTPIN_O
+    hum_o  = dht_o.readHumidity();
     temp_o = dht_o.readTemperature();
 #endif
-#ifdef I2C_SENSOR
-    // SHT31, BME280
-    hum_i = sens_i.getHumidity();
-    hum_o = sens_o.getHumidity();
-    temp_i = sens_i.getTemperature_C();
-    temp_o = sens_o.getTemperature_C();
+#ifdef I2C_SENSOR1 
+  // SHT31, BME280
+  // BME280 also needs:
+  #ifdef BMEI2C1
+   sens_i.readSensor();
+  #endif
+  hum_i = sens_i.getHumidity();
+  temp_i = sens_i.getTemperature_C();
+#endif
+#ifdef I2C_SENSOR2
+  #ifdef BMEI2C2
+   sens_o.readSensor();
+  #endif
+  hum_o = sens_o.getHumidity();
+  temp_o = sens_o.getTemperature_C();
 #endif
 
 #ifdef FAKE
@@ -511,7 +548,7 @@ void do_measure(void) {
       return;  // skip this measure cycle
     }
     if (isnan(hum_o) || isnan(temp_o) ) {
-      DEBUG_PRINTLN(F("Failed to read from outdoor sensor (2)!"));
+      DEBUG_PRINTLN(F("Failed to read from outdoor sensor (S2)!"));
       FPL(OutErrSensor);
       lcd.print("S2!");
       buzzer(0);
@@ -540,31 +577,30 @@ void do_measure(void) {
 
     // Lüftersteuerung
     check_switch_rules(FAN, dew_i, dew_o); 
+    
     // Entfeuchtersteuerung
     check_switch_rules(DEHYD, dew_i, dew_o);
 
-#ifdef DEBUG
+#if defined DEBUG || defined SERIAL_OUT
     sprint_report();
 #endif
 
 #ifdef HAVE_ESPLINK
- #ifndef DEBUG 
-   // use serial output to esp-link to display measures also without debug enabled
-   sprint_report();
- #endif
     // Wifi - send values
-    if(cust_params[HAVE_WIFI]) { 
+    if(cust_params[HAVE_WIFI] && wifiConnected) { 
       uint8_t send_retries = 1;
       do {
-       if (! wifi_send(send_retries)) {
+       if (! wifi_send()) {
          OUT_SER(F("REST request failed: "));
          OUT_SERLN(send_retries);
-         lcd.setCursor(0, 1);
-         FPL(ERR_REST);
-         lcd.print(send_retries);
+         //lcd.setCursor(0, 1);
+         //FPL(ERR_REST);
+         //lcd.print(send_retries);
          delay(1000);
          esp.init();
          esp.Process();
+         //esp.Sync();
+         //rest.begin(api_host);
          setup_wifi();
         } else {
          OUT_SER(F("REST request sent successfully: "));
@@ -573,12 +609,19 @@ void do_measure(void) {
         }
       } while (send_retries++ <= SEND_MAX_RETRY);
      if (send_retries > SEND_MAX_RETRY) {
-        //cust_params[HAVE_WIFI] = 0;
-        // try re-sync ?
-        sync_done = false;
+        wifiConnected = false;
+        OUT_SERLN(F("REST failure, skipped."));
      }
     } else {
-      DEBUG_PRINTLN(F("Wifi not connected!"));
+      if (!cust_params[HAVE_WIFI]) {
+        DEBUG_PRINTLN(F("Wifi not enabled!"));
+      } else {
+        DEBUG_PRINTLN(F("Wifi not working, retrying..."));
+		    setup_wifi();
+        //esp.init();
+        //wifi_send();  // TEST...
+
+      }
     }
 #endif
   } // Ende Messinterval
@@ -587,16 +630,13 @@ void do_measure(void) {
 // prüfe diverse Bedingungen für Lüfterstart
 void check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o) {
 bool do_stop = false;
+//uint32_t runtime = 0;
+//uint32_t daytime = 0;
 
-  //if (control_override) return; // do not control devices when in manual mode [deactivated - test-menu should never timeout]
+  if (control_override) return; // do not control devices when in manual mode 
   
-  // no dehumi configured, or no fan pause active => prevent DEHYD from starting
-  if (dev == DEHYD && (!cust_params[HAVE_DEHYD] || fan_pause_millis == 0)) {  
-    do_stop = true;
-  }
-
   // check pause for device
-  if (fan_pause_millis > 0 && ((unsigned long)(curr_millis - fan_pause_millis) >= (unsigned long) (cust_params[L_PAUSE] * 60000))) {
+  if (fan_pause_millis > 0 && ((curr_millis - fan_pause_millis) >= (unsigned long) (cust_params[L_PAUSE] * 60000))) {
      // pause has been active, and max pause time has been reached
      fan_pause_millis = 0;  // resetting pause counter
      lcd.clear();
@@ -621,6 +661,11 @@ bool do_stop = false;
      return;
   }
 
+  // no dehumi configured, or no fan pause active => prevent DEHYD from starting
+  if (dev == DEHYD && (!cust_params[HAVE_DEHYD] || fan_pause_millis == 0)) {  
+    do_stop = true;
+  }
+
   // do not start any device if indoor humidity is too low; stop device if running
   // if (hum_i < cust_params[HUM_MAX] - cust_params[HYSTERESIS_OFF]) { // hysteresis needed here as well?
   if (hum_i < cust_params[HUM_MAX]) {              
@@ -639,12 +684,25 @@ bool do_stop = false;
     }
   }
 
+
   // switch off device when configured max runtime is reached = fan pause start ==> dehum start
-  if (is_dev_on[dev] && ((unsigned long)(curr_millis - fan_run_millis) >= (unsigned long) (cust_params[MAX_LRUN] * 60000))) {   
+  if (is_dev_on[dev] && ((curr_millis - fan_run_millis) >= (unsigned long) (cust_params[MAX_LRUN] * 60000))  ) {   
+//  if (is_dev_on[dev] && (runtime >= (unsigned long) (cust_params[MAX_LRUN] * 60000)) || (is_dev_on[dev] && ((total_run[dev]+(runtime/60000)) > cust_params[MAX_PER_24H]))) {   
+     do_stop = true;
      fan_pause_millis = curr_millis;   // Timer starten
      fan_run_millis = 0;               // Laufzeit resetten
      buzzer(200);
-     do_stop = true;
+  }
+
+  if (is_dev_on[dev] && (daily_run[dev] < cust_params[MAX_PER_24H])) {
+     daily_run[dev] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
+  } else if (is_dev_on[dev] && (daily_run[dev] >= cust_params[MAX_PER_24H])) {
+     do_stop = true;  // daily limit reached!
+     lcd.setCursor(0, 1);
+     FPL(MAXRUN); // max. Laufzeit
+     lcd.print("err.");
+     buzzer(200);
+     delay(1000);
   }
 
   // is indoor dewpoint higher than outdoors, incl. hysreresis? (dp_in min. 2° more than dp_out, when hyst_on = 2)
@@ -653,7 +711,7 @@ bool do_stop = false;
     if (dev == DEHYD || (temp_i >= cust_params[T_IN_MIN] && temp_o >= cust_params[T_OUT_MIN])) { 
          if (is_dev_on[dev] == false) {      // Lüfter/Dehum Laufzeit startet
            set_relay(dev, true);             // Lüfter/Dehum einschalten
-           fan_run_millis = curr_millis;     // Timer starten
+           //fan_run_millis = curr_millis;     // Timer starten
            lcd.setCursor(0, 1);
            lcd.print(GNAME[dev]);
            FPL(MnuOn);
@@ -832,6 +890,7 @@ void update_screen(uint8_t screen) {
 }
 
 void show_activity(void) {
+//char curs[] = {"-","\","|","/"};
   if (curr_millis % AINTV == 0 && show_screen == 0 && systemState == State::Default) {
     act_symb = (act_symb == 0) ? 1 : 0;
     if (is_dev_on[FAN]) {
@@ -855,6 +914,7 @@ void show_activity(void) {
     digitalWrite(ActLED, true);
     delay(80);
     digitalWrite(ActLED, false);
+    OUT_SER(".");
   }
 }
 
@@ -875,11 +935,10 @@ double DewPoint(double akt_temp, double humidity)
 
 // backlight on, timer reset
 void trigger_backlight(void) {
-  if (lcd_on == false) {
+  if (!lcd_on) {
     lcd_millis = curr_millis;  // light LCD
-    //lcd_on = true;
-    //lcd.backlight();
     LCD_ON;
+    DEBUG_PRINTLN(F("LCD_ON triggered!"));
   }
 }
 
@@ -895,5 +954,3 @@ float getAbsHumidity(float relhum, float temp) {
   return m * x;
 }
 */
-
-

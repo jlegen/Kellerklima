@@ -33,7 +33,7 @@ void menuCallback(menuAction_t action) {
 }
  */
 
-extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miBack,miT1,miT2,miExit;
+extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miSW7,miBack,miT1,miT2,miExit;
 void set_relay(uint8_t relay, bool trig);
 void trigger_backlight(void);
 
@@ -49,6 +49,7 @@ void getItemValuePointer(const Menu::Item_t *mi, int16_t **i) {
   if (mi == &miSW4)         *i = &cust_params[HYSTERESIS_ON];
   if (mi == &miSW5)         *i = &cust_params[HYSTERESIS_OFF];
   if (mi == &miSW6)         *i = &cust_params[INTERVAL];
+  if (mi == &miSW7)         *i = &cust_params[MAX_PER_24H];
 }
 
 // format LCD output value, no. decimals, length of number, padded with " "
@@ -121,11 +122,11 @@ uint8_t device = FAN;
     if (encMovement > 0) {
       FPL(MnuOn); 
       set_relay(device, true);
-      //control_override = true;
+      control_override = true;
     } else if (encMovement < 0) {
       FPL(MnuOff); 
       set_relay(device, false);
-      //control_override = false;
+      control_override = false;
     }
     updateMenu = false;
   }
@@ -172,12 +173,12 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     }
 
     // Laufzeiten
-    if (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 ) {
+    if (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 || engine->currentItem == &miSW7) {
       buf="min";
       if (encAbsolute > 10080) { // 7 Tage
         encAbsolute = 10080;
-      } else if (encAbsolute < 1) {
-        encAbsolute = 1;
+      } else if (encAbsolute < 10) {
+        encAbsolute = 10;
       }
     }
 
@@ -275,8 +276,9 @@ MenuItem(miSettings2, "Setup Daten",   miSettings3,    miSettings1,    miExit,  
   MenuItem(miSW3,    "Mindesttemp. S2",miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW4,    "Hysterese Ein",  miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW5,    "Hysterese Aus",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "Messintervall",  miSWBack,       miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW6,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW6,    "Messintervall",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "Laufzeit/Tag",   miSWBack,       miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW7,          miSettings2, Menu::NullItem, menuBack);
 
 //MenuItem(miSettings3, "Schalten",      miBack,         miSettings2,    miExit,      miT1,          menuDummy);
 MenuItem(miSettings3, "Schalten",      Menu::NullItem, miSettings2,    miExit,      miT1,          menuDummy);
@@ -304,8 +306,9 @@ MenuItem(miSettings2, "Setup Params",   miSettings3,    miSettings1,    miExit, 
   MenuItem(miSW3,    "min. temp. S2",   miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW4,    "Hysteresis On",   miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW5,    "Hysteresis Off",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "Meas. interval",  miSWBack,       miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW6,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW6,    "Meas. interval",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "Runtime/Day",     miSWBack,       miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW7,          miSettings2, Menu::NullItem, menuBack);
 
 MenuItem(miSettings3, "Switch on/off",  miBack,           miSettings2,       miExit,      miT1,          menuDummy);
   MenuItem(miT1,      "Fan",            miT2,             Menu::NullItem,    miSettings3, Menu::NullItem, menuOnOff);
@@ -361,29 +364,32 @@ void set_relay(uint8_t relay, bool trig) {
 #ifdef RelaysLowActive
   digitalWrite(my_relays[relay], !trig);  // set = true => relais = LOW
 #else
-  digitalWriteFast(my_relays[relay], trig);  // set = true => relais = LOW
+  digitalWrite(my_relays[relay], trig);  // set = true => relais = HIGH
 #endif
  if (trig && !is_dev_on[relay]) {
   dev_start = millis();                     // store start time
+  fan_run_millis = dev_start;
  } else if (is_dev_on[relay] && !trig) {  
-  total_run[relay] += (millis() - dev_start) / 60000; // add run time
+  total_run[relay] += (millis() - dev_start) / 60000; 
+  //daily_run[relay] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
  }
  is_dev_on[relay] = trig;
 }
 
 void write_to_eeprom(void) {
-int i;
-int len = sizeof(cust_params) / sizeof(int16_t);
- for (i=0; i<len; i++) {
-   EEPROM.update(EEPROM_ADDR + i,(byte)cust_params[i]);
+ int len = ARRAY_SIZE(cust_params); //sizeof(cust_params) / sizeof(int16_t);
+ for (int i=0; i<len; i++) {
+   EEPROM.update(EEPROM_ADDR + (i*2),     highByte(cust_params[i]));
+   EEPROM.update(EEPROM_ADDR + ((i*2)+1), lowByte(cust_params[i]));
  }
 }
 
 void read_from_eeprom(void) {
-int i;
-int len = sizeof(cust_params) / sizeof(int16_t);
- for (i=0; i<len; i++) {
-   cust_params[i] = EEPROM.read(EEPROM_ADDR + i);
+ int len = ARRAY_SIZE(cust_params); //sizeof(cust_params) / sizeof(int16_t);
+ for (int i=0; i<len; i++) {
+   byte hi = EEPROM.read(EEPROM_ADDR + (i*2));
+   byte lo = EEPROM.read(EEPROM_ADDR + ((i*2)+1));
+   cust_params[i] = word(hi, lo);
  }
 }
 
@@ -402,98 +408,147 @@ int freeRam2 (void) {
 
 // serial output of measurements - either with DEBUG on, or ESP-LINK enabled!
 void sprint_report(void) {
-#if defined(DEBUG) || defined(HAVE_ESPLINK)
-uint32_t rtime =0;
-    Serial.println(F("----------------"));
-    Serial.print(F("Indoor S1:  "));
-    Serial.print(F("Hum: "));
-    Serial.print(hum_i);
-    Serial.print(F(" %\t"));
-    Serial.print(F("Temp: "));
-    Serial.print(temp_i);
-    Serial.print(F(" *C\t"));
-    Serial.print(F("Dewpoint: "));
-    Serial.println(dew_i);
+#if defined DEBUG || defined SERIAL_OUT 
+  uint32_t rtime =0;
+  OUT_SERLN(F("\n----------------"));
+  OUT_SER(F("Innen S1:  "));
+  OUT_SER(F("Feuchte: "));
+  OUT_SER(hum_i);
+  OUT_SER(F("%\t Temp: "));
+  OUT_SER(temp_i);
+  OUT_SER(F("°C\t Taupunkt: "));
+  OUT_SERLN(dew_i);
 
-    Serial.print(F("Outdoor S2: "));
-    Serial.print(F("Hum: "));
-    Serial.print(hum_o);
-    Serial.print(F(" %\t"));
-    Serial.print(F("Temp: "));
-    Serial.print(temp_o);
-    Serial.print(F(" *C\t"));
-    Serial.print(F("Dewpoint: "));
-    Serial.println(dew_o);
-/*
-    Serial.print(F("Hysteresis On: "));
-    Serial.print(cust_params[HYSTERESIS_ON]);
-    Serial.print(F("*C "));
-    Serial.print(F("Hysteresis Off: "));
-    Serial.print(cust_params[HYSTERESIS_OFF]);
-    Serial.print(F("*C "));
-*/
-    Serial.print(F("Wifi on: "));
-    Serial.println(cust_params[HAVE_WIFI]);
+  OUT_SER(F("Aussen S2: "));
+  OUT_SER(F("Feuchte: "));
+  OUT_SER(hum_o);
+  OUT_SER(F("%\t Temp: "));
+  OUT_SER(temp_o);
+  OUT_SER(F("°C\t Taupunkt: "));
+  OUT_SERLN(dew_o);
 
-/*    Serial.print(F("Humidity-min: "));
-    Serial.print(cust_params[HUM_MAX]);
-    Serial.print(F("% "));    
-    Serial.print(F("Temp. S1 indoor "));
-    Serial.print(cust_params[T_IN_MIN]);
-    Serial.print(F("*C "));
-    Serial.print(F("Temp. S2 outdoor "));
-    Serial.print(cust_params[T_OUT_MIN]);
-    Serial.println(F("*C "));
-*/
-    Serial.print(F("Fan/Luefter            "));
-    if (is_dev_on[FAN]) {
-      Serial.print(F("Device is ON! "));
-      Serial.print(F("runtime: "));
-      rtime = ((unsigned long) (curr_millis - fan_run_millis)/60000);
-      Serial.print(rtime);
-      Serial.print(F(" min. "));
-    }      
-    Serial.print(F("Total runtime: "));
-    Serial.print(total_run[FAN] + rtime);
-    Serial.println(F(" min."));
+  OUT_SER(F("Entfeuchter angeschl.: "));
+  OUT_SER(cust_params[HAVE_DEHYD]);
+  OUT_SER(F(" | Wifi an: "));
+  OUT_SERLN(cust_params[HAVE_WIFI]);
+  OUT_SER(F("Messintervall: "));
+  OUT_SER(cust_params[INTERVAL]);
+  OUT_SER(F("s | Hysterese ein: "));
+  OUT_SER(cust_params[HYSTERESIS_ON]);
+  OUT_SER(F("°K | aus: "));
+  OUT_SER(cust_params[HYSTERESIS_OFF]);
+  OUT_SERLN("°K");
+  OUT_SER(F("max. Luefterlaufzeit: "));
+  OUT_SER(cust_params[MAX_LRUN]);
+  OUT_SER(F("min. | Luefterpause: "));
+  OUT_SER(cust_params[L_PAUSE]);
+  OUT_SERLN(F("min."));
 
-    Serial.print(F("Dehydrator/Entfeuchter "));
-    rtime = 0;
-    if (is_dev_on[DEHYD]) {
-      Serial.print(F("Device is ON! "));
-      Serial.print(F("runtime: "));
-      rtime = ((unsigned long) (curr_millis - fan_pause_millis)/60000);
-      Serial.print(rtime);
-      Serial.print(F(" min. "));
-    }      
-    Serial.print(F("Total runtime: "));
-    Serial.print(total_run[DEHYD] + rtime);
-    Serial.println(F(" min."));
-    if (fan_pause_millis > 0) {
-      Serial.print(F("Pause is active for "));
-      rtime = ((unsigned long) (curr_millis - fan_pause_millis)/60000);
-      Serial.print(rtime);
-      Serial.println(F(" min. "));
-    }      
-    //Serial.println("");
-    DEBUG_PRINT(F("Switch on [Dewpoint_S2 <= (Dewpoint_S1 - Hysteresis_on)]: "));
-    DEBUG_PRINT(dew_o);
-    DEBUG_PRINT(F(" <= "));
-    DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_ON]);
-    DEBUG_PRINTLN("?");
-    DEBUG_PRINT(F("Switch off [Dewpoint_S2 > (Dewpoint_S1 - Hysteresis_off)]: "));
-    DEBUG_PRINT(dew_o);
-    DEBUG_PRINT(F(" > "));
-    DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_OFF]);
-    DEBUG_PRINTLN("?");
-    Serial.print(F("Total uptime: "));
-    Serial.print((unsigned long)curr_millis/1000/60);
-    Serial.println(F(" min."));
-    Serial.print(F("Free RAM: "));
-    Serial.println((int)freeRam);
-    Serial.println(F("----------------"));
+  OUT_SER(F("Schwellwert: "));
+  OUT_SER(cust_params[HUM_MAX]);
+  OUT_SER(F("% | MinTemp. Innen: "));
+  OUT_SER(cust_params[T_IN_MIN]);
+  OUT_SER(F("°C | MinTemp. Aussen: "));
+  OUT_SER(cust_params[T_OUT_MIN]);
+  OUT_SERLN("°C");
+
+  const PROGMEM char *DEV[] = {"Luefter         ", "Entfeuchter     "};
+  for (int i=0; i<2; i++) {    
+      Serial.print(DEV[i]);
+      rtime=0;
+      if (is_dev_on[i]) {
+        Serial.print(F("Geraet ist AN! "));
+        Serial.print(F("Laufzeit: "));
+        rtime = ((millis() - fan_run_millis)/60000);
+        Serial.print(rtime);
+        Serial.print(F(" min. | "));
+      }      
+      Serial.print(F("Gesamt: "));
+      Serial.print(total_run[i] + rtime);
+      Serial.println(F(" min."));
+  }
+
+  DEBUG_PRINT(F("Switch on [Dewpoint_S2 <= (Dewpoint_S1 - Hysteresis_on)]: "));
+  DEBUG_PRINT(dew_o);
+  DEBUG_PRINT(F(" <= "));
+  DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_ON]);
+  DEBUG_PRINTLN("?");
+  DEBUG_PRINT(F("Switch off [Dewpoint_S2 > (Dewpoint_S1 - Hysteresis_off)]: "));
+  DEBUG_PRINT(dew_o);
+  DEBUG_PRINT(F(" > "));
+  DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_OFF]);
+  DEBUG_PRINTLN("?");
+
+  OUT_SER(F("Gesamtbetriebszeit: "));
+  rtime = (millis()/60000)/60/24;
+  OUT_SER(rtime);
+  OUT_SER(F("d "));
+  rtime = (millis()/60000/60) - (rtime * 24);
+  OUT_SER(rtime);
+  OUT_SER(F("h "));
+  rtime = (millis()/60000 % 60) ;
+  OUT_SER(rtime);
+  OUT_SER(F("m | max. Laufzeit/Tag: "));
+  OUT_SER(cust_params[MAX_PER_24H]);
+  OUT_SER(F("m | RAM: "));
+  OUT_SERLN((int)freeRam);
+
+  DEBUG_PRINT(F("curr_millis: "));
+  DEBUG_PRINT(curr_millis);
+  DEBUG_PRINT(" (");
+  DEBUG_PRINT(curr_millis/1000/60);
+  DEBUG_PRINTLN("m)");
+  DEBUG_PRINT(F("LCD_ON: "));
+  DEBUG_PRINTLN(lcd_on);
+  DEBUG_PRINT(F("LCD_TIME: "));
+  DEBUG_PRINTLN(curr_millis - lcd_millis);
+    
+  OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
 #endif
 }
+
+// serial command input (testing, remote control)
+uint8_t get_cmd(String arg) {
+ String cmd = arg.substring(0, arg.indexOf("="));
+ char buf[6];
+ for (int i=0; i<(ARRAY_SIZE(CMDS)); i++) {
+  strcpy_P(buf, (char *)pgm_read_word(&(CMDS[i])));
+  if (cmd == buf) {
+    return i;
+    break;
+  }
+ }
+ return(-1);
+}
+
+int16_t get_value(String arg) {
+  String str = arg.substring(arg.indexOf("=")+1, arg.length());
+  return ((str == arg) ? -1000 : str.toInt());
+/*  if (str == NULL) {
+    return(-1000);  // hack: empty string
+  } else {
+   return(str.toInt());
+  }*/
+}
+
+String get_help(int i) {
+ char buf[50];
+ strcpy_P(buf, (char *)pgm_read_word(&(HELP[i])));
+ return(buf);
+}
+
+void out_help(void) {
+ char buf[6];
+ Serial.println(F("\nBefehle:"));
+ for (int i=0; i<(ARRAY_SIZE(CMDS)-1); i++) { 
+   strcpy_P(buf, (char *)pgm_read_word(&(CMDS[i])));
+   Serial.print(buf);
+   Serial.print(": \t");
+   Serial.println(get_help(i));
+ }
+}
+
+
 /*
 void lcd_message(char* m1, char* m2) {
   lcd.clear();
@@ -540,4 +595,3 @@ float roundFloat(float number, int decimals) {
   return rounded_float; 
 }
 */
-

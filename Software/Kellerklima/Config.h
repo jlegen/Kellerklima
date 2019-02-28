@@ -3,52 +3,52 @@
 //
 #define VERSION  1.2
 
-#define DHTPIN_I 8     // Pin Innensensor S1
-#define DHTPIN_O 9     // Pin Aussensensor S2
-//#define SENSI2C1 0x76 // use I2C sensors => BME280 breakouts
-//#define SENSI2C2 0x77
-//#define SHTI2C1 0x44  // use I2C sensors => SHT31 breakouts
-//#define SHTI2C2 0x45
-#define Relais_L 5     // Pin Lüfter/Klappe
-#define Relais_E 6     // Pin Entfeuchter
+//#define DHTPIN_I 10     // Pin Innensensor S1
+//#define DHTPIN_O 11     // Pin Aussensensor S2
+//#define BMEI2C1 0x76 // use I2C sensors => BME280 breakouts
+//#define BMEI2C2 0x77
+#define SHTI2C1 0x44  // use I2C sensors => SHT31 breakouts
+#define SHTI2C2 0x45
+#define Relais_L 2     // Pin Lüfter/Klappe
+#define Relais_E 3     // Pin Entfeuchter
 #define ActLED 13      // Pin LED (Messung)
-//#define INTERVAL 60000 // Messintervall 60s (now customizable)
+
 #define AINTV 500      // Intervall für Aktivitätsanzeige
-#define BACKLIGHT_OFF 180000 // switch off backlight (3min)
 
-#define RelaysLowActive // trigger relays with low signal
+//#define RelaysLowActive 1 // trigger relays with low signal (PCB1.2: do not define)
 
-// esp-link present?
-#define HAVE_ESPLINK 1
+// use esp-link?
+//#define HAVE_ESPLINK true
 #ifdef HAVE_ESPLINK
-//#define HAVE_ESPWEB 1
  // Change to your own Thingspeak API key
- char *api_key = "XXX";
+ char *api_key = "X436YTGNCGV1SFG8";
  char *api_host = "184.106.153.149";
  #define BUFLEN 266
- #define SEND_MAX_RETRY 5
- bool sync_done = false;
+ #define SEND_MAX_RETRY 4	// retry of REST requests 
+ //bool sync_done = false;    // status of communication with ESP-link 
+ bool wifiConnected = false;  // status of communication with ESP-link
 #endif
 
 // LCD
-#define LCD_I2C  // use I2C LCD - parallel otherwise
-// I2C LCD config
-#define LCD_ADDR 0x27
 #define LCD_CHARS 16
 #define LCD_LINES  2
+//#define LCD_I2C  // use I2C LCD - parallel otherwise
+// I2C LCD config
+#define LCD_ADDR 0x27
 // parallel LCD config
-#define LCD_RS     2 
-#define LCD_EN     3
-#define LCD_D4     14   // A0
-#define LCD_D5     15   // A1
-#define LCD_D6     16   // A2
-#define LCD_D7     17   // A3
-#define LCD_LED    4
+#define LCD_RS     8 
+#define LCD_EN     9
+#define LCD_D4     7   
+#define LCD_D5     6   
+#define LCD_D6     5   
+#define LCD_D7     4   
+#define LCD_LED    17    // pin to switch backlight
 // LCD R/W pin to ground
 // LCD VSS pin to ground
 // LCD VCC pin to 5V
 // 10K resistor ends to +5V and ground
 
+#define BACKLIGHT_OFF 180000 // switch off backlight (3min)
 #ifdef LCD_I2C
  #define LCD_ON lcd.backlight(); lcd_on = true;
  #define LCD_OFF lcd.noBacklight(); lcd_on = false;
@@ -57,8 +57,27 @@
  #define LCD_OFF lcd.noDisplay(); digitalWrite(LCD_LED, false); lcd_on = false;
 #endif
 
-#define FAN 0    // device index
-#define DEHYD 1
+// ClickEncoder 
+// https://github.com/0xPIT/
+//
+#define r_button 16                //rotary encoder pushbutton, PB1
+#define r_pha 15                   //rotary encoder phase A, PB2
+#define r_phb 14                   //rotary encoder phase B, PB3
+
+int16_t encMovement;
+int16_t encAbsolute;
+int16_t encLastAbsolute = -1;
+//bool lastEncoderAccelerationState = false;
+
+ClickEncoder Encoder(r_pha, r_phb, r_button, 2); // 2,3,4 = clicks per step (notches)
+
+// Pieper
+#define BUZZER 12 // pin for buzzer
+//#define TONE_ON digitalWrite(BUZZER, true) 
+//#define TONE_OFF digitalWrite(BUZZER, false) 
+//passive buzzer - only when on PWM pin! (1, 9, 10, 12, 13) (PCB 1.2)
+#define TONE_ON tone(BUZZER, 1200)
+#define TONE_OFF noTone(BUZZER)
 
 #define SERIAL_BAUD 57600
 #define EEPROM_ADDR 10  // start address for avr eeprom 
@@ -69,23 +88,46 @@
 #define FT(x,y);  const char x[] PROGMEM = {y};  // shorter flash string defs
 
 // Sensortyp
-//#define DHTTYPE DHT11   // DHT 11
-//#define DHTTYPE DHT21   // DHT 21 (AM2301)
+//#define DHTTYPE_I DHT11   // DHT 11
+//#define DHTTYPE_O DHT11   // DHT 21 (AM2301)
 #define DHTTYPE_I DHT22   // DHT 22  (AM2302), AM2321
 #define DHTTYPE_O DHT22   // DHT 22  (AM2302), AM2321
-
-// ClickEncoder 
-// https://github.com/0xPIT/
-//
-#define r_button 10                //rotary encoder pushbutton, PB1
-#define r_pha 11                   //rotary encoder phase A, PB2
-#define r_phb 12                   //rotary encoder phase B, PB3
-
 
 // define language
 #define GERMAN
 //#define ENGLISH
 
+#define FAN 0    // device index
+#define DEHYD 1
+
+#define TEMP_HYSTERESIS 1  // universal hysteresis to be used for temperature measures (min. inner/outer temp)
+
+#define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
+
+#ifdef GERMAN
+const PROGMEM char cmd_0[] = {"r1"};
+const PROGMEM char cmd_1[] = {"r2"};
+const PROGMEM char cmd_2[] = {"hum"};
+const PROGMEM char cmd_3[] = {"tempi"};
+const PROGMEM char cmd_4[] = {"tempo"};
+const PROGMEM char cmd_5[] = {"max"};
+const PROGMEM char cmd_6[] = {"int"};
+const PROGMEM char cmd_7[] = {"save"};
+const PROGMEM char cmd_8[] = {"hilfe"};
+
+const PROGMEM char hlp_0[] = {"Luefter r1=1: an | r1=0: aus"};
+const PROGMEM char hlp_1[] = {"Entfeuchter r2=1: an | r2=0: aus"};
+const PROGMEM char hlp_2[] = {"Feuchte-Schwellwert (%)"};
+const PROGMEM char hlp_3[] = {"Mindest-Temperatur 'Innen'"};
+const PROGMEM char hlp_4[] = {"Mindest-Temperatur 'Aussen'"};
+const PROGMEM char hlp_5[] = {"maximale Geraetelaufzeit pro 24h (Min.)"};
+const PROGMEM char hlp_6[] = {"Messintervall (Sek.)"};
+const PROGMEM char hlp_7[] = {"Speichern aller Parameter"};
+const PROGMEM char hlp_8[] = {""};
+#endif
+
+const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8};
+const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8};
 
 #ifdef GERMAN
 const char *GNAME[] = {"L\365fter", "Entfeuchter"};
@@ -132,7 +174,7 @@ FT(WIFI_ON,     "Wifi an:");
 FT(ERR_WIFI,    "No Wifi sync!   ");
 FT(OK_WIFI,     "Wifi now synced!");
 FT(ERR_REST,    "REST Error: ");
-FT(OK_REST,     "REST Setup Ok! ");
+FT(OK_REST,     "REST Setup Ok!   ");
 #endif
 
 #ifdef ENGLISH
@@ -187,21 +229,6 @@ FT(OK_REST,     "REST Setup Ok!  ");
 
 #define MAX_SHOW_SCREENS 15 // number of LCD screens to update if rotating
 
-int16_t encMovement;
-int16_t encAbsolute;
-int16_t encLastAbsolute = -1;
-//bool lastEncoderAccelerationState = false;
-
-ClickEncoder Encoder(r_pha, r_phb, r_button, 2); // 2,3,4 = clicks per step (notches)
-
-// Pieper
-#define BUZZER 7 // pin for buzzer
-#define TONE_ON digitalWrite(BUZZER, true) 
-#define TONE_OFF digitalWrite(BUZZER, false) 
-//passive buzzer - only when on PWM pin! (1, 9, 10, 12, 13)
-//#define TONE_ON tone(BUZZER, 1200)
-//#define TONE_OFF noTone(BUZZER)
-
 uint8_t my_relays[] = {Relais_L, Relais_E};
 
 // Messvars
@@ -213,6 +240,7 @@ unsigned long lcd_millis = 0;
 unsigned long milliMil = 0;
 
 unsigned long total_run[] = {0, 0};
+unsigned long daily_run[] = {0, 0};
 unsigned long dev_start = 0;
 
 // Messwerte
@@ -225,8 +253,8 @@ float dew_o = 0;
 
 static char is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
 uint8_t act_symb = 0; // show activity symbol
-uint8_t lcd_on = true;    // is backlight on?
-//uint8_t control_override = false; // override controller by manual switch
+uint8_t lcd_on = false;    // is backlight on?
+uint8_t control_override = false; // override controller by manual switch
 
 //
 // Kellerparameter
@@ -242,16 +270,14 @@ uint8_t lcd_on = true;    // is backlight on?
 #define HAVE_WIFI      8 //Wifi enabled?
 #define HAVE_BEEPER    9 //Buzzer enabled?
 #define INTERVAL      10 // Messintervall (seconds), default=60s
+#define MAX_PER_24H   11 // max. Lüfterlaufzeit pro 24h (min.)
 
 // NB: HUM_MAX-Hysteresis = hyst_off
 
 
-
 // initial defaults
-int16_t cust_params[11] = {60, 12, 2,  3, 1, 0, 120, 120, 0, 1, 60};
+int16_t cust_params[12] = {60, 12, 4,  2, 1, 0, 120, 120, 0, 1, 60, 360};
 int16_t last_value = 0;
-
-#define TEMP_HYSTERESIS 1  // universal hysteresis to be used for temperature measures (min. inner/outer temp)
 
 // Encoder drehen = Anzeige durchschalten
 uint8_t show_screen = 0;
@@ -352,5 +378,3 @@ TWBR   prescaler   Frequency
 
 
  */
-
-

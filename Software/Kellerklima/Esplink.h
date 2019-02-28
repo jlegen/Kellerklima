@@ -2,14 +2,6 @@
 // support for serial bridge esp-link
 //
 
-#ifdef HAVE_ESPLINK
- #ifndef DEBUG
-  #define OUT_SERIAL(x) Serial.begin (x)
-  #define OUT_SER(x) Serial.print (x)
-  #define OUT_SERLN(x) Serial.println (x)
- #endif
-#endif
-
 void setup_wifi(void);
 
 void wifiCb(void *response) {
@@ -19,18 +11,19 @@ void wifiCb(void *response) {
     res->popArg(&status, 1);
     if(status == STATION_GOT_IP) {
       DEBUG_PRINTLN(F("Wifi connected! (Cb)"));
-      cust_params[HAVE_WIFI] = 1;
+      wifiConnected = true;
     } else {
       DEBUG_PRINT(F("Wifi not ready (Cb): "));
       DEBUG_PRINTLN(status);
-      cust_params[HAVE_WIFI] = 0; // let the arduino work without bothering with Wifi any longer
-      sync_done = false; // allow clean retry (?)
+      wifiConnected = false; 
     }
   }
 }
 
 void resetCb(void) {
-  setup_wifi(); 
+  wifiConnected = false;
+  DEBUG_PRINTLN(F("resetCB called!"));
+  //setup_wifi(); 
 //#ifdef HAVE_ESPWEB
 //  webServer.setup();
 //#endif
@@ -38,48 +31,65 @@ void resetCb(void) {
 
 void setup_wifi(void) {
 int err;
-if (cust_params[HAVE_WIFI]) {
-  if (! sync_done) {
-   DEBUG_PRINTLN(F("Wifi client starting..."));
+uint8_t send_retries = 1;
+ if (cust_params[HAVE_WIFI]) {
+  if (! wifiConnected) {
+   DEBUG_PRINTLN(F("Setup Wifi client..."));
    lcd.setCursor(0, 1);
    bool ok = false;
+   //esp.resetCb = resetCb;
+   //esp.wifiCb.attach(wifiCb);
    do {
-    //esp.wifiCb.attach(wifiCb); // wifi status change callback, optional (delete if not desired)
     ok = esp.Sync();      // sync up with esp-link, blocks for up to 2 seconds
     if (!ok) {
       OUT_SER(FS(ERR_WIFI));
       OUT_SERLN(F(" Do a full reset or switch off & on."));
       FPL(ERR_WIFI);
       lcd.setCursor(0, 1);
-      delay(1000);
+      delay(500);
       esp.init();
       esp.Process();
     }
-   } while(!ok);
-   OUT_SERLN(FS(OK_WIFI));
-   FPL(OK_WIFI);
-   delay(2000);
-   sync_done = true;
+    send_retries++ ;
+    //esp.Process();
+   } while(!ok && send_retries < SEND_MAX_RETRY);
+   if (ok) {
+    OUT_SERLN(FS(OK_WIFI));
+    FPL(OK_WIFI);
+    esp.GetWifiStatus();
+    //ELClientPacket *packet;
+    //if ((packet=esp.WaitReturn(2000)) != NULL) {
+    //  OUT_SER("Packet: ");
+    //  OUT_SERLN(packet->value);
+    //}
+    delay(1000);
+    wifiConnected = true;
+    //rest = NULL;
+   } else {
+    wifiConnected = false;
+    cust_params[HAVE_WIFI] = 0;
+   }
   }
-  uint8_t send_retries = 1;
+  send_retries = 1;
   do {
-   lcd.setCursor(0, 1);
+   //lcd.setCursor(0, 1);
    err = rest.begin(api_host);
    if (err != 0) {
     OUT_SER(FS(ERR_REST));
     OUT_SERLN(err);
-    //DEBUG_PRINTLN(esp._status);
-    FPL(ERR_REST);
+    //FPL(ERR_REST);
    } else {
     OUT_SER(FS(OK_REST));
     OUT_SERLN(send_retries);
-    FPL(OK_REST);
+    //FPL(OK_REST);
+    wifiConnected = true;
     break;
    }
    delay(500);
-  } while (send_retries++ <= SEND_MAX_RETRY);
+   //esp.Process();
+  } while (wifiConnected && (send_retries++ <= SEND_MAX_RETRY));
   if (err != 0) {
-    cust_params[HAVE_WIFI] = 0; // give up on Wifi
+    wifiConnected = false; // give up on Wifi
   }
 #ifdef HAVE_ESPWEB
   webServer.setup();
@@ -89,11 +99,12 @@ if (cust_params[HAVE_WIFI]) {
 
 
 //Wifi send using esp-link
-bool wifi_send(uint8_t send_try) {
-    esp.Process();
+bool wifi_send(void) {
+    //esp.Process();
 
     char path_data[BUFLEN];
     char tmp[6];
+    char response[BUFLEN];
 
     sprintf(path_data, "%s", "/update?api_key=");
     sprintf(path_data + strlen(path_data), "%s", api_key);
@@ -115,18 +126,21 @@ bool wifi_send(uint8_t send_try) {
     sprintf(path_data + strlen(path_data), "%s", "&field6=");
     dtostrf(dew_i,0,1,tmp);
     sprintf(path_data + strlen(path_data), "%s", tmp);
+    DEBUG_PRINTLN(path_data);
     //rest.post(path_data,"");
     rest.get(path_data);
-    char response[BUFLEN];
     memset(response, 0, sizeof(response));
-    uint16_t code = rest.waitResponse(response, BUFLEN);
-    DEBUG_PRINT(path_data);
-    DEBUG_PRINT(" ");
+    uint16_t code = rest.waitResponse(response, BUFLEN-1);
+   // DEBUG_PRINT(" ");
     if(code == HTTP_STATUS_OK){
+      DEBUG_PRINT(F("REST success: "));
       DEBUG_PRINTLN(response);
       return true;
     } else {
-      DEBUG_PRINTLN(code);
+      DEBUG_PRINT(F("REST HTTP error: "));
+      DEBUG_PRINT(code);
+      DEBUG_PRINT(" - ");
+      DEBUG_PRINTLN(response);
       return false;
     }
 }
@@ -154,4 +168,3 @@ char * get_date(void) {
 }
 
 */
-
