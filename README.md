@@ -34,3 +34,6 @@ rotary encoder at the right - is used to scroll through values, testing the rela
 
 PCB version finally ready :-)
 ![1st PCB version](pics/pcb_1.jpg)
+
+new PCB for sensors - tailored to fit into cheap weather-proof boxes
+![Sensor pcp 1.2](pics/Sensors_pcb_V1.2.jpg)
