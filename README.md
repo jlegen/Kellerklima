@@ -45,6 +45,6 @@ new PCB for sensors - tailored to fit into cheap waterproof boxes (65X58X35mm)
 ![Sensor pcp 1.2](pics/Sensors_pcb_V1.2.jpg)
 
 like these
-![box_1](pics/sensor_box_1.jpg)
-![box_2](pics/sensor_box_2.jpg)
+![box_1](pics/sensor_box_1.png)
+![box_2](pics/sensor_box_2.png)
 
