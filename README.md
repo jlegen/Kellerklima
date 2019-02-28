@@ -1,19 +1,25 @@
 # Kellerklima
-## arduino based climate controller with indoor and outdoor sensors for fan control
+## arduino based humidity controller with indoor and outdoor sensors for fan control
 
 I made this device to dry my (and others :) cellars by mostly making use of the times when the absolute humidity outdoors is lower than indoors. 
 For this, two sensors are used to measure humidity and temperature, indoors and outdoors.
 Though this seems to be quite a common design, i only found some rather costly commercial products. This one mostly uses cheap and popular modules.
 
 ## Basic principle
-Temperature and humidity values from inside and outside are used to calculate the absolute humidity. If the outside is less humid than the inside, the fan is started (or, alternatively, the window is opened).
-There's a maximum fan runtime to be configured. After this, either the fan is paused, or - using the 2nd relay - a dehumifier can be started for a period of time.
-This runs until the target humidity value for the inside is reached.
+Temperature and humidity values from inside and outside are used to calculate the absolute humidity. If the outside is less humid than the inside, the fan is started (or, alternatively, the window is opened, if an opener is used instead of a fan).
+There's a maximum fan runtime to be configured. After this time, either the fan is paused, or - using the 2nd relay - a dehumidifier unit can be started for a set period of time.
+This repeats until the target humidity value for the inside is reached, or one of the user-defined criterias change:
+* only runs if the inside humidity is above the trigger value
+* only runs if inside temperature is above a minimum value
+* only runs if outside temperature is above a minimum value
+* only runs if the runtime limit per day (24h) is not reached yet
 
 ## Implementation
 
-Optionally, the data can also be sent to Thingspeak - making use of a tiny ESP8266 with ESPLink. 
-This ESP-01 module also allows to remotely flash the arduino code of the controller. 
+The rugulation makes use of configurable hysteresis values for activation and deactivation, to avoid "flicker" and a fan being turned on and off too quickly.
+All parameters can be configures using the rotary encoder and a menu system with the 1602 LCD. 
+Optionally, if an ESP-01 module with ESP-Link is added, the data can also be sent to Thingspeak (you have to define your API key in the code). 
+This ESP-01 module also allows to remotely flash the arduino code of the controller, and to monitor all activities of the control box remotely. Parameters can be defined using simple commands, and also fan or dehumidifier can be switched on and off, overriding the regulation.
 Libraries used are commented in the code.
 
 Update: It turned out that the DHT22 sensors are cr*p, they "wear out" quite quickly, showing wrong humidity data after a few weeks.
