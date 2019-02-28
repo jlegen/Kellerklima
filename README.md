@@ -18,7 +18,7 @@ This repeats until the target humidity value for the inside is reached, or one o
 
 The rugulation makes use of configurable hysteresis values for activation and deactivation, to avoid "flicker" and a fan being turned on and off too quickly.
 All parameters can be configures using the rotary encoder and a menu system with the 1602 LCD. 
-Optionally, if an ESP-01 module with ESP-Link is added, the data can also be sent to Thingspeak (you have to define your API key in the code). 
+Optionally, if an ESP-01 module with ESP-Link (https://github.com/jeelabs/esp-link) is added, the data can also be sent to Thingspeak (you have to define your API key in the code). 
 This ESP-01 module also allows to remotely flash the arduino code of the controller, and to monitor all activities of the control box remotely. Parameters can be defined using simple commands, and also fan or dehumidifier can be switched on and off, overriding the regulation.
 Libraries used are commented in the code.
 
