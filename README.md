@@ -32,19 +32,19 @@ Next hardware revision should probably use an ESP module as controller...
 
 box in normal run mode; the LCD is switched off after a few minutes of inactivity
 
-![1st "production" version](pics/box_1.png)
+![1st prototype](pics/box_1.png)
 
 rotary encoder at the right - is used to scroll through values, testing the relay, and to set most parameters
 
-![1st "production" version](pics/box_2.png)
+![1st prototype](pics/box_2.png)
 
-PCB version finally ready :-)
+PCB version finally ready (V1.2)
 ![1st PCB version](pics/pcb_1.jpg)
 
 new PCB for sensors - tailored to fit into cheap waterproof boxes (65X58X35mm)
 ![Sensor pcp 1.2](pics/Sensors_pcb_V1.2.jpg)
 
 like these
-![box_1](pics/Sensors_box1.jpg)
-![box_2](pics/Sensors_box2.jpg)
+![box_1](pics/sensor_box_1.jpg)
+![box_2](pics/sensor_box_2.jpg)
 
