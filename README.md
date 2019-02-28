@@ -41,5 +41,10 @@ rotary encoder at the right - is used to scroll through values, testing the rela
 PCB version finally ready :-)
 ![1st PCB version](pics/pcb_1.jpg)
 
-new PCB for sensors - tailored to fit into cheap weather-proof boxes (65X58X35mm)
+new PCB for sensors - tailored to fit into cheap waterproof boxes (65X58X35mm)
 ![Sensor pcp 1.2](pics/Sensors_pcb_V1.2.jpg)
+
+like these
+![box_1](pics/Sensors_box1.jpg)
+![box_2](pics/Sensors_box2.jpg)
+
