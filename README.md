@@ -1,5 +1,5 @@
 # Kellerklima
-## arduino based humidity controller with indoor and outdoor sensors for fan control
+## Arduino-based humidity controller with indoor and outdoor sensors for fan control
 
 I made this device to dry my (and others :) cellars by mostly making use of the times when the absolute humidity outdoors is lower than indoors. 
 For this, two sensors are used to measure humidity and temperature, indoors and outdoors.
