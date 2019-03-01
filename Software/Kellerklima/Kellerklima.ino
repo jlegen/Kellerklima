@@ -541,14 +541,18 @@ void do_measure(void) {
 
     // Check if any reads failed and exit early (to try again).
     if (isnan(hum_i) || isnan(temp_i) ) {
-      DEBUG_PRINTLN(F("Failed to read from indoor sensor (S1)!"));
+      OUT_SER("\n=> ");
+      OUT_SER(FS(OutErrSensor));
+      OUT_SERLN("S1!");
       FPL(OutErrSensor);
       lcd.print("S1!");
       buzzer(0);
       return;  // skip this measure cycle
     }
     if (isnan(hum_o) || isnan(temp_o) ) {
-      DEBUG_PRINTLN(F("Failed to read from outdoor sensor (S2)!"));
+      OUT_SER("\n=> ");
+      OUT_SER(FS(OutErrSensor));
+      OUT_SERLN("S2!");
       FPL(OutErrSensor);
       lcd.print("S2!");
       buzzer(0);
