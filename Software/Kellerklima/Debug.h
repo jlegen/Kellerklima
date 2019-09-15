@@ -1,4 +1,4 @@
-//#define DEBUG true
+#define DEBUG true
 #define HAVE_ESP true  // use ESP-01 remote console?
 #define SERIAL_OUT true
 //#define FAKE true

@@ -53,7 +53,7 @@ void getItemValuePointer(const Menu::Item_t *mi, int16_t **i) {
 }
 
 // format LCD output value, no. decimals, length of number, padded with " "
-void lcdPrintDouble(double val, uint8_t precision = 1, uint8_t lpad=0) {
+void lcdPrintFloat(double val, uint8_t precision = 1, uint8_t lpad=0) {
 char tmp[6];
   dtostrf(val,lpad,precision,tmp);
   lcd.print(tmp);
@@ -225,7 +225,7 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
       }
       buf = "";
     } else {
-      lcdPrintDouble(tmp,0,3);
+      lcdPrintFloat(tmp,0,3);
     }
     lcd.print(buf);
     
@@ -371,7 +371,7 @@ void set_relay(uint8_t relay, bool trig) {
   fan_run_millis = dev_start;
  } else if (is_dev_on[relay] && !trig) {  
   total_run[relay] += (millis() - dev_start) / 60000; 
-  //daily_run[relay] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
+  daily_run[relay] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
  }
  is_dev_on[relay] = trig;
 }
@@ -410,47 +410,22 @@ int freeRam2 (void) {
 void sprint_report(void) {
 #if defined DEBUG || defined SERIAL_OUT 
   uint32_t rtime =0;
-  OUT_SERLN(F("\n----------------"));
-  OUT_SER(F("Innen S1:  "));
+  OUT_SERLN(F("\n----------------------------------------------------------------"));
+  OUT_SER(F("Innen  S1: "));
   OUT_SER(F("Feuchte: "));
   OUT_SER(hum_i);
-  OUT_SER(F("%\t Temp: "));
+  OUT_SER(F("% \tTemp: "));
   OUT_SER(temp_i);
-  OUT_SER(F("°C\t Taupunkt: "));
+  OUT_SER(F("°C \tTaupunkt: "));
   OUT_SERLN(dew_i);
 
   OUT_SER(F("Aussen S2: "));
   OUT_SER(F("Feuchte: "));
   OUT_SER(hum_o);
-  OUT_SER(F("%\t Temp: "));
+  OUT_SER(F("% \tTemp: "));
   OUT_SER(temp_o);
-  OUT_SER(F("°C\t Taupunkt: "));
+  OUT_SER(F("°C \tTaupunkt: "));
   OUT_SERLN(dew_o);
-
-  OUT_SER(F("Entfeuchter angeschl.: "));
-  OUT_SER(cust_params[HAVE_DEHYD]);
-  OUT_SER(F(" | Wifi an: "));
-  OUT_SERLN(cust_params[HAVE_WIFI]);
-  OUT_SER(F("Messintervall: "));
-  OUT_SER(cust_params[INTERVAL]);
-  OUT_SER(F("s | Hysterese ein: "));
-  OUT_SER(cust_params[HYSTERESIS_ON]);
-  OUT_SER(F("°K | aus: "));
-  OUT_SER(cust_params[HYSTERESIS_OFF]);
-  OUT_SERLN("°K");
-  OUT_SER(F("max. Luefterlaufzeit: "));
-  OUT_SER(cust_params[MAX_LRUN]);
-  OUT_SER(F("min. | Luefterpause: "));
-  OUT_SER(cust_params[L_PAUSE]);
-  OUT_SERLN(F("min."));
-
-  OUT_SER(F("Schwellwert: "));
-  OUT_SER(cust_params[HUM_MAX]);
-  OUT_SER(F("% | MinTemp. Innen: "));
-  OUT_SER(cust_params[T_IN_MIN]);
-  OUT_SER(F("°C | MinTemp. Aussen: "));
-  OUT_SER(cust_params[T_OUT_MIN]);
-  OUT_SERLN("°C");
 
   const PROGMEM char *DEV[] = {"Luefter         ", "Entfeuchter     "};
   for (int i=0; i<2; i++) {    
@@ -463,10 +438,58 @@ void sprint_report(void) {
         Serial.print(rtime);
         Serial.print(F(" min. | "));
       }      
-      Serial.print(F("Gesamt: "));
+      Serial.print(F("Tag: "));
+      Serial.print(daily_run[i] + rtime);
+      Serial.print(F("m \tGesamt: "));
       Serial.print(total_run[i] + rtime);
-      Serial.println(F(" min."));
+      Serial.println("m");
   }
+
+  OUT_SER(F("max. Luefterlaufzeit: "));
+  OUT_SER(cust_params[MAX_LRUN]);
+  OUT_SER(F("min. \tLuefterpause: "));
+  OUT_SER(cust_params[L_PAUSE]);
+  OUT_SERLN(F("min."));
+
+  OUT_SER(F("Gesamtbetriebszeit: "));
+  rtime = (millis()/60000)/60/24;
+  OUT_SER(rtime);
+  OUT_SER(F("d "));
+  rtime = (millis()/60000/60) - (rtime * 24);
+  OUT_SER(rtime);
+  OUT_SER(F("h "));
+  rtime = (millis()/60000 % 60) ;
+  OUT_SER(rtime);
+  OUT_SER(F("m \tLaufzeit Max/Tag: "));
+  OUT_SER(cust_params[MAX_LRUN]);
+  OUT_SER(F("m/"));
+  OUT_SER(cust_params[MAX_PER_24H]);
+  OUT_SERLN(F("m"));
+ 
+  OUT_SER(F("Konfiguration Entfeuchter: "));
+  OUT_SER(cust_params[HAVE_DEHYD]);
+  OUT_SER(F(" \tWifi: "));
+  OUT_SERLN(cust_params[HAVE_WIFI]);
+
+  OUT_SER(F("Messintervall: "));
+  OUT_SER(cust_params[INTERVAL]);
+  OUT_SER(F("s \tHysterese ein: "));
+  OUT_SER(cust_params[HYSTERESIS_ON]);
+  OUT_SER(F("°K | aus: "));
+  OUT_SER(cust_params[HYSTERESIS_OFF]);
+  OUT_SERLN("°K");
+
+  OUT_SER(F("Schwellwert: "));
+  OUT_SER(cust_params[HUM_MAX]);
+  OUT_SER(F("% \tMinTemp. Innen: "));
+  OUT_SER(cust_params[T_IN_MIN]);
+  OUT_SER(F("°C | MinTemp. Aussen: "));
+  OUT_SER(cust_params[T_OUT_MIN]);
+  OUT_SERLN("°C");
+
+  OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
+  
+  DEBUG_PRINTLN(F("\n##### DEBUG ######"));
 
   DEBUG_PRINT(F("Switch on [Dewpoint_S2 <= (Dewpoint_S1 - Hysteresis_on)]: "));
   DEBUG_PRINT(dew_o);
@@ -478,32 +501,30 @@ void sprint_report(void) {
   DEBUG_PRINT(F(" > "));
   DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_OFF]);
   DEBUG_PRINTLN("?");
+  DEBUG_PRINT(F("Dewpoint difference dew_i - dew_o: "));
+  DEBUG_PRINTLN(dew_i - dew_o);
 
-  OUT_SER(F("Gesamtbetriebszeit: "));
-  rtime = (millis()/60000)/60/24;
-  OUT_SER(rtime);
-  OUT_SER(F("d "));
-  rtime = (millis()/60000/60) - (rtime * 24);
-  OUT_SER(rtime);
-  OUT_SER(F("h "));
-  rtime = (millis()/60000 % 60) ;
-  OUT_SER(rtime);
-  OUT_SER(F("m | max. Laufzeit/Tag: "));
-  OUT_SER(cust_params[MAX_PER_24H]);
-  OUT_SER(F("m | RAM: "));
-  OUT_SERLN((int)freeRam);
-
-  DEBUG_PRINT(F("curr_millis: "));
+  DEBUG_PRINT(F("\ncurr_millis: "));
   DEBUG_PRINT(curr_millis);
   DEBUG_PRINT(" (");
   DEBUG_PRINT(curr_millis/1000/60);
   DEBUG_PRINTLN("m)");
-  DEBUG_PRINT(F("LCD_ON: "));
+
+  DEBUG_PRINTLN(F("\nLaufzeiten 24h/total (min.):"));
+  DEBUG_PRINT(F("Luefter: "));
+  DEBUG_PRINT(daily_run[FAN]);
+  DEBUG_PRINT("/");
+  DEBUG_PRINTLN(total_run[FAN]);
+  DEBUG_PRINT(F("Entf.: "));
+  DEBUG_PRINT(daily_run[DEHYD]);
+  DEBUG_PRINT("/");
+  DEBUG_PRINTLN(total_run[DEHYD]);
+  
+  DEBUG_PRINT(F("\nLCD_ON: "));
   DEBUG_PRINTLN(lcd_on);
   DEBUG_PRINT(F("LCD_TIME: "));
   DEBUG_PRINTLN(curr_millis - lcd_millis);
     
-  OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
 #endif
 }
 
@@ -548,6 +569,11 @@ void out_help(void) {
  }
 }
 
+// round to <decimal places>
+float roundFloat(float number, int decimals) {
+  float rounded_float = round(number * pow(10, decimals)) / pow(10, decimals);
+  return rounded_float; 
+}
 
 /*
 void lcd_message(char* m1, char* m2) {
@@ -588,10 +614,5 @@ uint8_t countDigits(uint32_t n) {
 void alignRightPrefix(uint16_t v) {
   if (v < 1e2) lcd.print(' '); 
   if (v < 1e1) lcd.print(' ');
-}
-
-float roundFloat(float number, int decimals) {
-  float rounded_float = round(number * pow(10, decimals)) / pow(10, decimals);
-  return rounded_float; 
 }
 */

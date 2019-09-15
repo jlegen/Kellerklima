@@ -1,7 +1,7 @@
 //
 // most configurable stuff here...
 //
-#define VERSION  1.2
+#define VERSION  1.3
 
 //#define DHTPIN_I 10     // Pin Innensensor S1
 //#define DHTPIN_O 11     // Pin Aussensensor S2
@@ -112,8 +112,10 @@ const PROGMEM char cmd_3[] = {"tempi"};
 const PROGMEM char cmd_4[] = {"tempo"};
 const PROGMEM char cmd_5[] = {"max"};
 const PROGMEM char cmd_6[] = {"int"};
-const PROGMEM char cmd_7[] = {"save"};
-const PROGMEM char cmd_8[] = {"hilfe"};
+const PROGMEM char cmd_7[] = {"hyston"};
+const PROGMEM char cmd_8[] = {"hystoff"};
+const PROGMEM char cmd_9[] = {"save"};
+const PROGMEM char cmd_10[] = {"hilfe"};
 
 const PROGMEM char hlp_0[] = {"Luefter r1=1: an | r1=0: aus"};
 const PROGMEM char hlp_1[] = {"Entfeuchter r2=1: an | r2=0: aus"};
@@ -122,16 +124,18 @@ const PROGMEM char hlp_3[] = {"Mindest-Temperatur 'Innen'"};
 const PROGMEM char hlp_4[] = {"Mindest-Temperatur 'Aussen'"};
 const PROGMEM char hlp_5[] = {"maximale Geraetelaufzeit pro 24h (Min.)"};
 const PROGMEM char hlp_6[] = {"Messintervall (Sek.)"};
-const PROGMEM char hlp_7[] = {"Speichern aller Parameter"};
-const PROGMEM char hlp_8[] = {""};
+const PROGMEM char hlp_7[] = {"Hysterese ein (%)"};
+const PROGMEM char hlp_8[] = {"Hysterese aus (%)"};
+const PROGMEM char hlp_9[] = {"Speichern aller Parameter"};
+const PROGMEM char hlp_10[] = {""};
 #endif
 
-const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8};
-const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8};
+const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8, cmd_9, cmd_10};
+const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8,hlp_9,hlp_10};
 
 #ifdef GERMAN
 const char *GNAME[] = {"L\365fter", "Entfeuchter"};
-//           01234567890123456
+//               01234567890123456
 FT(HEADER1,     "Kellerklima V");
 FT(HEADER2,     "Automatisch");
 FT(HEADER3,     "L\365ften und ");
@@ -169,6 +173,7 @@ FT(MnuOnOff,    "Schalten:       ");
 FT(MnuOn,       " An");
 FT(MnuOff,      "Aus");
 FT(TOTAL,       "Gesamt-");
+FT(DAILY,       "Tages-");
 FT(WIFI_ON,     "Wifi an:");
 FT(ERR_WIFI,    "No Wifi sync!   ");
 FT(OK_WIFI,     "Wifi now synced!");
@@ -217,6 +222,7 @@ FT(MnuOnOff,    "Toggle:         ");
 FT(MnuOn,       " On");
 FT(MnuOff,      "Off");
 FT(TOTAL,       "Total ");
+FT(DAILY,       "Daily ");
 FT(WIFI_ON,     "Wifi on:");
 FT(ERR_WIFI,    "No Wifi sync!   ");
 FT(OK_WIFI,     "Wifi now synced!");
@@ -226,7 +232,7 @@ FT(OK_REST,     "REST Setup Ok!  ");
 
 //char buf[20]; // generic char buffer
 
-#define MAX_SHOW_SCREENS 15 // number of LCD screens to update if rotating
+#define MAX_SHOW_SCREENS 17 // number of LCD screens to update if rotating
 
 uint8_t my_relays[] = {Relais_L, Relais_E};
 
@@ -237,6 +243,7 @@ unsigned long fan_run_millis = 0;
 unsigned long fan_pause_millis = 0;
 unsigned long lcd_millis = 0;
 unsigned long milliMil = 0;
+#define DECIMALS 2
 
 unsigned long total_run[] = {0, 0};
 unsigned long daily_run[] = {0, 0};
@@ -249,6 +256,8 @@ float temp_i = 0;
 float temp_o = 0;
 float dew_i = 0;
 float dew_o = 0;
+float dew_i2 = 0;
+float dew_o2 = 0;
 
 static char is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
 uint8_t act_symb = 0; // show activity symbol

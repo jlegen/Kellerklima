@@ -1,4 +1,4 @@
-// Lüftungssteuerung V1.2
+// Lüftungssteuerung V1.3
 // (c)2016-19 jleg99@gmail.com
 //
 // adapt settings in Config.h
@@ -115,7 +115,7 @@ void trigger_backlight(void);
 void update_screen(uint8_t screen);
 void do_measure(void);
 void show_activity(void);
-void check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o);
+bool check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o);
 void dev_stop(uint8_t is_stop, uint8_t mydev);
 void sprint_report(void);
 // end function prototypes
@@ -280,11 +280,6 @@ int16_t *iValue;
 */
   milliMil = curr_millis - prev_millis;
 
-  if ( ((millis()/60000) % 60 == 0) && (((millis()/60000)/60 % 24) == 0)) { // reset daily runtime counters
-    daily_run[FAN] = 0;
-    daily_run[DEHYD] = 0;
-  }
-  
   // handle encoder
   encMovement = Encoder.getValue();
   if (encMovement) {
@@ -431,6 +426,7 @@ int16_t *iValue;
 
   if (lcd_on && ((curr_millis - lcd_millis) >= BACKLIGHT_OFF)) {   // turn off LCD backlight 
     LCD_OFF;
+    DEBUG_PRINTLN(F("\nLCD off: timeout"));
     if (systemState != State::Default) {
       systemState = State::Default;
       menuExit(Menu::actionNone); // reset to initial state
@@ -468,14 +464,20 @@ int16_t *iValue;
      cust_params[INTERVAL] = val;
     break;
     case 7:
-     write_to_eeprom();
+     cust_params[HYSTERESIS_ON] = val;
     break;
     case 8:
+     cust_params[HYSTERESIS_OFF] = val;
+    break;
+    case 9:
+     write_to_eeprom();
+    break;
+    case 10:
      out_help();
     break;
   }
 
-  if (c >= 0 && c < 9) {
+  if (c >= 0 && c < 11) {
     Serial.print("\n");
     Serial.print(get_help(c));
     if (val != -1000) {
@@ -495,6 +497,14 @@ int16_t *iValue;
 void do_measure(void) {
 // Wait INTERVAL between measurements.
   if (milliMil >= ((unsigned long) cust_params[INTERVAL]*1000)) {
+
+    // reset runtime counters every 24th hour
+    if ( ((millis()/60000) % 60 == 0) && (((millis()/60000)/60 % 24) == 0)) { 
+      daily_run[FAN] = 0;
+      daily_run[DEHYD] = 0;
+      DEBUG_PRINTLN(F("24h-Laufzeit-Timer zurueckgesetzt."));
+    }
+
     prev_millis = curr_millis;
     show_screen = 0; // default; disable showing data
 
@@ -505,12 +515,12 @@ void do_measure(void) {
     // DHT22
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    hum_i  = dht_i.readHumidity();
-    temp_i = dht_i.readTemperature();
+    hum_i  = roundFloat(dht_i.readHumidity(), DECIMALS);
+    temp_i = roundFloat(dht_i.readTemperature(), DECIMALS);
 #endif
 #ifdef DHTPIN_O
-    hum_o  = dht_o.readHumidity();
-    temp_o = dht_o.readTemperature();
+    hum_o  = roundFloat(dht_o.readHumidity(), DECIMALS);
+    temp_o = roundFloat(dht_o.readTemperature(), DECIMALS);
 #endif
 #ifdef I2C_SENSOR1 
   // SHT31, BME280
@@ -518,15 +528,17 @@ void do_measure(void) {
   #ifdef BMEI2C1
    sens_i.readSensor();
   #endif
-  hum_i = sens_i.getHumidity();
-  temp_i = sens_i.getTemperature_C();
+  hum_i  = roundFloat(sens_i.getHumidity(), DECIMALS);
+  temp_i = roundFloat(sens_i.getTemperature_C(), DECIMALS);
+  //dew_i2 = roundFloat(sens_i.getDewPoint(), DECIMALS);
 #endif
 #ifdef I2C_SENSOR2
   #ifdef BMEI2C2
    sens_o.readSensor();
   #endif
-  hum_o = sens_o.getHumidity();
-  temp_o = sens_o.getTemperature_C();
+  hum_o  = roundFloat(sens_o.getHumidity(), DECIMALS);
+  temp_o = roundFloat(sens_o.getTemperature_C(), DECIMALS);
+  //dew_o2 = roundFloat(sens_o.getDewPoint(), DECIMALS);
 #endif
 
 #ifdef FAKE
@@ -560,18 +572,20 @@ void do_measure(void) {
     }
     
     // Dewpoints
-    dew_i = DewPoint(temp_i, hum_i);
-    dew_o = DewPoint(temp_o, hum_o);
+    dew_i = roundFloat(DewPoint(temp_i, hum_i), DECIMALS);
+    dew_o = roundFloat(DewPoint(temp_o, hum_o), DECIMALS);
 
+    // 1234567890123456
+    // S1: 22,1°C 66,1% 
     lcd.print("S1:");
-    lcdPrintDouble(temp_i,1,4);
+    lcdPrintFloat(temp_i,1,4);
     lcd.print("\337C ");
     lcd.print(hum_i,1);
     lcd.print("%");
 
     lcd.setCursor(0, 1);
     lcd.print("S2:");
-    lcdPrintDouble(temp_o, 1, 4);
+    lcdPrintFloat(temp_o, 1, 4);
     lcd.print("\337C ");
     lcd.print(hum_o,1);
     lcd.print("%");
@@ -580,10 +594,10 @@ void do_measure(void) {
     digitalWrite(ActLED, false);
 
     // Lüftersteuerung
-    check_switch_rules(FAN, dew_i, dew_o); 
+    dev_stop(check_switch_rules(FAN, dew_i, dew_o), FAN); 
     
     // Entfeuchtersteuerung
-    check_switch_rules(DEHYD, dew_i, dew_o);
+    dev_stop(check_switch_rules(DEHYD, dew_i, dew_o), DEHYD);
 
 #if defined DEBUG || defined SERIAL_OUT
     sprint_report();
@@ -632,98 +646,130 @@ void do_measure(void) {
 }
 
 // prüfe diverse Bedingungen für Lüfterstart
-void check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o) {
-bool do_stop = false;
-//uint32_t runtime = 0;
-//uint32_t daytime = 0;
+bool check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o) {
+//bool do_stop = false;
 
-  if (control_override) return; // do not control devices when in manual mode 
+  if (control_override) return(false); // do not control devices when in manual mode 
+  
+  // no dehumi configured, or no fan pause active => prevent DEHYD from starting
+  if (dev == DEHYD && (!cust_params[HAVE_DEHYD] || fan_pause_millis == 0)) {  
+    //do_stop = true;
+    return(true);
+  }
+
+// sum & check daily max runtime
+  if (((daily_run[dev] + (millis() - dev_start)) / 60000) >= cust_params[MAX_PER_24H]) {
+     //do_stop = true;  // daily limit reached!
+     if (is_dev_on[dev]) {
+       lcd.setCursor(0, 1);
+       FPL(MAXRUN); // max. Laufzeit
+       lcd.print("/24h");
+       buzzer(200);
+       DEBUG_PRINTLN(F("\nMax. 24h-Laufzeit ueberschritten - Abschaltung."));
+       delay(1000);
+     }
+     DEBUG_PRINTLN(F("\nMax. 24h-Laufzeit ueberschritten - warten bis 24h-Reset."));
+     return(true);
+  }
+
+  // do not start any device if indoor humidity is too low; stop device if running (using same hysteresis as for dew point)
+
+  // device is not running & hum_i is lower than trigger => stop processing 
+  if ((is_dev_on[dev] == false) && (hum_i < cust_params[HUM_MAX])) {
+    return(false);
+  }
+  // device is not running & hum_i is greater than trigger => pass on to switch decision 
+  if ((is_dev_on[dev] == false) && (hum_i >= cust_params[HUM_MAX])) {
+    // switch on = pass through
+    DEBUG_PRINTLN(F("\nFeuchteschwellwert ueberschritten!"));
+  }
+  // device is running, and hum_i is greater than trigger incl. hysteresis => pass on to switch decision 
+  //if ((is_dev_on[dev] == true) && (hum_i >= (cust_params[HUM_MAX] - cust_params[HYSTERESIS_ON]))) {
+    // remain on = pass through
+  //}
+  // device is running, and hum_i is below trigger incl. hysteresis => switch off
+  if ((is_dev_on[dev] == true) && (hum_i < (cust_params[HUM_MAX] - cust_params[HYSTERESIS_ON]))) {
+    // switch off
+    lcd.clear();
+    FPL(MSGOK);
+    lcd.setCursor(0,1);
+    lcd.print("S1: ");
+    lcd.print(hum_i,1);
+    lcd.print("% < ");
+    lcd.print(cust_params[HUM_MAX]);
+    lcd.print("%");
+    buzzer(200);
+    DEBUG_PRINTLN(F("\nFeuchteschwellwert unterschritten!"));
+    delay(1000);
+    return(true);
+  }
   
   // check pause for device
-  if (fan_pause_millis > 0 && ((curr_millis - fan_pause_millis) >= (unsigned long) (cust_params[L_PAUSE] * 60000))) {
+   if (fan_pause_millis > 0 && ((curr_millis - fan_pause_millis) >= (unsigned long) (cust_params[L_PAUSE] * 60000))) {
      // pause has been active, and max pause time has been reached
      fan_pause_millis = 0;  // resetting pause counter
      lcd.clear();
      FPL(OutPause); // Lüfterpause Ende
      FPL(MnuOff);
      lcd.setCursor(0, 1);
+     DEBUG_PRINTLN(F("Luefterpause beendet!"));
      if (is_dev_on[DEHYD]) {
-      lcd.print(GNAME[dev]); // Dehum is active, switch off now
+      lcd.print(GNAME[DEHYD]); // Dehum is active, switch off now
       lcd.print(" ");
       FPL(MnuOff);
       FPL(Blank4);
+      DEBUG_PRINTLN(F("Abschaltung Entfeuchter."));
      }
      buzzer(200);
      delay(1000);
-  } else if (fan_pause_millis > 0 && dev == FAN) {   // Pause geht weiter?
+     return(true);
+   } else if (fan_pause_millis > 0 && dev == FAN) {   // Pause geht weiter?
      // pause still active, update lcd if fan is used
      lcd.setCursor(0, 1);
      FPL(OutPause); // Lüfterpause XXm
      lcd.print((curr_millis - fan_pause_millis)/60000);
      lcd.print("m  ");
+     DEBUG_PRINT(F("Luefterpause... "));
+     DEBUG_PRINTLN((curr_millis - fan_pause_millis)/60000);
      //delay(1000);
-     return;
-  }
-
-  // no dehumi configured, or no fan pause active => prevent DEHYD from starting
-  if (dev == DEHYD && (!cust_params[HAVE_DEHYD] || fan_pause_millis == 0)) {  
-    do_stop = true;
-  }
-
-  // do not start any device if indoor humidity is too low; stop device if running
-  // if (hum_i < cust_params[HUM_MAX] - cust_params[HYSTERESIS_OFF]) { // hysteresis needed here as well?
-  if (hum_i < cust_params[HUM_MAX]) {              
-    do_stop = true;
-    if (is_dev_on[dev]) {
-      lcd.clear();
-      FPL(MSGOK);
-      lcd.setCursor(0,1);
-      lcd.print("S1: ");
-      lcd.print(hum_i,1);
-      lcd.print("% < ");
-      lcd.print(cust_params[HUM_MAX]);
-      lcd.print("%");
-      buzzer(200);
-      delay(1000);
-    }
-  }
+     return(false);
+   }
 
 
   // switch off device when configured max runtime is reached = fan pause start ==> dehum start
   if (is_dev_on[dev] && ((curr_millis - fan_run_millis) >= (unsigned long) (cust_params[MAX_LRUN] * 60000))  ) {   
-//  if (is_dev_on[dev] && (runtime >= (unsigned long) (cust_params[MAX_LRUN] * 60000)) || (is_dev_on[dev] && ((total_run[dev]+(runtime/60000)) > cust_params[MAX_PER_24H]))) {   
-     do_stop = true;
-     fan_pause_millis = curr_millis;   // Timer starten
+     //do_stop = true;
+     fan_pause_millis = curr_millis;   // Pause Timer starten
      fan_run_millis = 0;               // Laufzeit resetten
-     buzzer(200);
-  }
-
-  if (is_dev_on[dev] && (daily_run[dev] < cust_params[MAX_PER_24H])) {
-     daily_run[dev] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
-  } else if (is_dev_on[dev] && (daily_run[dev] >= cust_params[MAX_PER_24H])) {
-     do_stop = true;  // daily limit reached!
      lcd.setCursor(0, 1);
      FPL(MAXRUN); // max. Laufzeit
-     lcd.print("err.");
+     lcd.print("/Run");
+     DEBUG_PRINTLN(F("\nMax. Nonstop-Laufzeit ueberschritten - Abschaltung."));
      buzzer(200);
      delay(1000);
+     return(true);
   }
 
+  // ################################
+  // ##### main activation rule #####
+  // ################################
   // is indoor dewpoint higher than outdoors, incl. hysreresis? (dp_in min. 2° more than dp_out, when hyst_on = 2)
-  if (!do_stop && (dewp_o <= (dewp_i - cust_params[HYSTERESIS_ON]) || dev == DEHYD)) { 
-    // check minimal temperatures for fan 
-    if (dev == DEHYD || (temp_i >= cust_params[T_IN_MIN] && temp_o >= cust_params[T_OUT_MIN])) { 
+  if (dewp_o <= (dewp_i - cust_params[HYSTERESIS_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
+    // check minimal temperatures for fan - DEHUM may always run!
+    if (dev == DEHYD || ((temp_i >= cust_params[T_IN_MIN]) && (temp_o >= cust_params[T_OUT_MIN]))) { 
          if (is_dev_on[dev] == false) {      // Lüfter/Dehum Laufzeit startet
-           set_relay(dev, true);             // Lüfter/Dehum einschalten
-           //fan_run_millis = curr_millis;     // Timer starten
+           set_relay(dev, true);             // Lüfter/Dehum einschalten, Laufzeit-Timer starten
            lcd.setCursor(0, 1);
            lcd.print(GNAME[dev]);
            FPL(MnuOn);
            FPL(Blank4);
+           DEBUG_PRINT(F("Geraet aktiviert: "));
+           DEBUG_PRINTLN(GNAME[dev]);
          }
-      } else if (dev != DEHYD && (temp_i < (cust_params[T_IN_MIN]-TEMP_HYSTERESIS) || temp_o < (cust_params[T_OUT_MIN]-TEMP_HYSTERESIS))) {  // Temperaturen zu niedrig
+        // FAN off because temps are too low
+      } else if ((dev != DEHYD) && ((temp_i < (cust_params[T_IN_MIN] - TEMP_HYSTERESIS)) || (temp_o < (cust_params[T_OUT_MIN] - TEMP_HYSTERESIS)))) {  // Temperaturen zu niedrig
          if (is_dev_on[dev]) {
-          do_stop = true;
+          //do_stop = true;
           lcd.setCursor(0,1);
           if (temp_i < cust_params[T_IN_MIN]) {
            lcd.print("S1 ");
@@ -735,13 +781,17 @@ bool do_stop = false;
            lcd.print(temp_o,1);
           }
          //delay(1000);
+         DEBUG_PRINTLN(F("\nLuefter deaktiviert, da Innen/Aussentemp. zu gering!"));
+         return(true);
          }
       }
-  } else if (dewp_o > (dewp_i - cust_params[HYSTERESIS_OFF])) { // switch off when dp_out only max. 1° less than dp_in (when hyst_off = 1)
-         do_stop = true;
+    // stop FAN if dTau outdoors is greater than indoors incl. hysteresis
+  } else if ((dev != DEHYD) && (dewp_o >= (dewp_i - cust_params[HYSTERESIS_OFF]) ) ) { // switch off when dp_out only max. 1° less than dp_in (when hyst_off = 1)
+         DEBUG_PRINTLN(F("\nLuefter deaktiviert, da Taupunktdifferenz zu gering!"));
+         return(true);
   }
 
-  dev_stop(do_stop, dev);
+  return(false); //do nothing
 }
 
 // Gerät stoppen
@@ -870,21 +920,39 @@ void update_screen(uint8_t screen) {
   break;  
   case 14:
     lcd.clear();
+    FPL(DAILY);
+    FPL(RUNTIME);
+    lcd.setCursor(0,1);
+    lcd.print(GNAME[FAN]);
+    lcd.print(" ");
+    lcd.print(daily_run[FAN]);
+    lcd.print("m");
+  break;  
+  case 15:
+    lcd.clear();
+    FPL(DAILY);
+    FPL(RUNTIME);
+    lcd.setCursor(0,1);
+    lcd.print(GNAME[DEHYD]);
+    lcd.print(" ");
+    lcd.print(daily_run[DEHYD]);
+    lcd.print("m");
+  break;  
+  case 16:
+    lcd.clear();
     FPL(TOTAL);
     FPL(RUNTIME);
     lcd.setCursor(0,1);
-    //FPL(DEVFAN);
     lcd.print(GNAME[FAN]);
     lcd.print(" ");
     lcd.print(total_run[FAN]);
     lcd.print("m");
   break;  
-  case 15:
+  case 17:
     lcd.clear();
     FPL(TOTAL);
     FPL(RUNTIME);
     lcd.setCursor(0,1);
-    //FPL(DEVDEHYD);
     lcd.print(GNAME[DEHYD]);
     lcd.print(" ");
     lcd.print(total_run[DEHYD]);
