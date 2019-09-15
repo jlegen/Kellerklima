@@ -1,0 +1,163 @@
+Cmp-Mod V01 Created by PcbNew   date = 04/02/2019 11:41:16
+
+BeginCmp
+TimeStamp = 5BA92D62
+Path = /5BAB2BF9
+Reference = J5;
+ValeurCmp = Pullup I2C;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5BA92D4D
+Path = /5BAB2A54
+Reference = J6;
+ValeurCmp = Pullup Line;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A70D150
+Path = /5A6F66FE
+Reference = U1;
+ValeurCmp = SHT31;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A70D138
+Path = /5A6F452C
+Reference = U2;
+ValeurCmp = DHT22;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x04_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A70D026
+Path = /5A75E08D
+Reference = J3;
+ValeurCmp = VDD;
+IdModule  = Wire_Pads:SolderWirePad_single_0-8mmDrill;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A70D021
+Path = /5A743054
+Reference = J1;
+ValeurCmp = 3V3;
+IdModule  = Wire_Pads:SolderWirePad_single_0-8mmDrill;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A70D01C
+Path = /5A75ACDF
+Reference = J4;
+ValeurCmp = 5V;
+IdModule  = Wire_Pads:SolderWirePad_single_0-8mmDrill;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6B88
+Path = /5A73594C
+Reference = U3;
+ValeurCmp = LM1117-3.3;
+IdModule  = TO_SOT_Packages_SMD:SOT-223-3_TabPin2;
+EndCmp
+
+BeginCmp
+TimeStamp = 5C580D2B
+Path = /5A6FDDC2
+Reference = J2;
+ValeurCmp = Controller;
+IdModule  = Terminal_Blocks:TerminalBlock_bornier-5_P5.08mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F9682
+Path = /5A6F37CD
+Reference = D1;
+ValeurCmp = 5V1;
+IdModule  = Diodes_ThroughHole:D_A-405_P7.62mm_Horizontal;
+EndCmp
+
+BeginCmp
+TimeStamp = 5BA904C8
+Path = /5A6FB293
+Reference = MK2;
+ValeurCmp = Mounting_Hole;
+IdModule  = Mounting_Holes:MountingHole_2.2mm_M2;
+EndCmp
+
+BeginCmp
+TimeStamp = 5BA904C0
+Path = /5A6FB100
+Reference = MK1;
+ValeurCmp = Mounting_Hole;
+IdModule  = Mounting_Holes:MountingHole_2.2mm_M2;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6CE4
+Path = /5A73A127
+Reference = C2;
+ValeurCmp = 100n;
+IdModule  = Capacitors_SMD:C_0805_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6CD3
+Path = /5A73A2AC
+Reference = C1;
+ValeurCmp = 100uF;
+IdModule  = Capacitors_ThroughHole:CP_Radial_D4.0mm_P2.00mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6C4B
+Path = /5A6FDC5B
+Reference = U4;
+ValeurCmp = P82B715D;
+IdModule  = Housings_SOIC:SO-8_5.3x6.2mm_Pitch1.27mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6BDD
+Path = /5A6FDF95
+Reference = R5;
+ValeurCmp = 470;
+IdModule  = Resistors_SMD:R_0805_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6BCC
+Path = /5A6FDF0E
+Reference = R4;
+ValeurCmp = 470;
+IdModule  = Resistors_SMD:R_0805_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6BBB
+Path = /5A6F87B5
+Reference = R3;
+ValeurCmp = 4k7;
+IdModule  = Resistors_SMD:R_0805_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6BAA
+Path = /5A6F8836
+Reference = R2;
+ValeurCmp = 4k7;
+IdModule  = Resistors_SMD:R_0805_HandSoldering;
+EndCmp
+
+BeginCmp
+TimeStamp = 5A6F6B99
+Path = /5A6F5442
+Reference = R1;
+ValeurCmp = 10k;
+IdModule  = Resistors_SMD:R_0805_HandSoldering;
+EndCmp
+
+EndListe
