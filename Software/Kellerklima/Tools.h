@@ -33,7 +33,7 @@ void menuCallback(menuAction_t action) {
 }
  */
 
-extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miSW7,miBack,miT1,miT2,miExit;
+extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miSW7,miSW8,miBack,miT1,miT2,miExit;
 void set_relay(uint8_t relay, bool trig);
 void trigger_backlight(void);
 
@@ -46,10 +46,11 @@ void getItemValuePointer(const Menu::Item_t *mi, int16_t **i) {
   if (mi == &miSW1)         *i = &cust_params[HUM_MAX];
   if (mi == &miSW2)         *i = &cust_params[T_IN_MIN];
   if (mi == &miSW3)         *i = &cust_params[T_OUT_MIN];
-  if (mi == &miSW4)         *i = &cust_params[HYSTERESIS_ON];
-  if (mi == &miSW5)         *i = &cust_params[HYSTERESIS_OFF];
-  if (mi == &miSW6)         *i = &cust_params[INTERVAL];
-  if (mi == &miSW7)         *i = &cust_params[MAX_PER_24H];
+  if (mi == &miSW4)         *i = &cust_params[HYSTERESIS_HUM];
+  if (mi == &miSW5)         *i = &cust_params[TAUPUNKTDIFF_ON];
+  if (mi == &miSW6)         *i = &cust_params[TAUPUNKTDIFF_OFF];
+  if (mi == &miSW7)         *i = &cust_params[INTERVAL];
+  if (mi == &miSW8)         *i = &cust_params[MAX_PER_24H];
 }
 
 // format LCD output value, no. decimals, length of number, padded with " "
@@ -123,10 +124,13 @@ uint8_t device = FAN;
       FPL(MnuOn); 
       set_relay(device, true);
       control_override = true;
+      DEBUG_PRINT(F("Geraet manuell eingeschaltet: "));
+      DEBUG_PRINTLN(GNAME[device]);
     } else if (encMovement < 0) {
       FPL(MnuOff); 
       set_relay(device, false);
       control_override = false;
+      DEBUG_PRINT(F("Geraet manuell ausgeschaltet."));
     }
     updateMenu = false;
   }
@@ -153,8 +157,6 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     // get var containing value of current menu item
     getItemValuePointer(engine->currentItem, &iValue);
 
-    // Hack - limit inputs somewhat
-    //(engine->currentItem == &miSW2 || engine->currentItem == &miSW3 || engine->currentItem == &miSW4 || engine->currentItem == &miSW5);
     if (is_temp) {
       buf = "\337C";
       if (encAbsolute > 60) {
@@ -173,7 +175,7 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     }
 
     // Laufzeiten
-    if (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 || engine->currentItem == &miSW7) {
+    if (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 || engine->currentItem == &miSW8) {
       buf="min";
       if (encAbsolute > 10080) { // 7 Tage
         encAbsolute = 10080;
@@ -183,7 +185,7 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     }
 
     // Messintervall
-    if (engine->currentItem == &miSW6) {
+    if (engine->currentItem == &miSW7) {
       buf="sec";
       if (encAbsolute > 7200) { // 2h
         encAbsolute = 7200;
@@ -193,7 +195,6 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     }
 
     // Ein/aus = 0/1
-    //if (engine->currentItem == &miSL3 || engine->currentItem == &miSL4 || engine->currentItem == &miSL5) is_bool = true;
     if (is_bool) {
       if (encMovement > 0) {
         encAbsolute = 1;
@@ -274,11 +275,12 @@ MenuItem(miSettings2, "Setup Daten",   miSettings3,    miSettings1,    miExit,  
   MenuItem(miSW1,    "Schwellwert rH%",miSW2,          Menu::NullItem, miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW2,    "Mindesttemp. S1",miSW3,          miSW1,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW3,    "Mindesttemp. S2",miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW4,    "Hysterese Ein",  miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW5,    "Hysterese Aus",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "Messintervall",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW7,    "Laufzeit/Tag",   miSWBack,       miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW7,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW4,    "Hysterese Hum.%",miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW5,    "dTaupunkt Ein",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW6,    "dTaupunkt Aus",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "Messintervall",  miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW8,    "Laufzeit/Tag",   miSWBack,       miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW8,          miSettings2, Menu::NullItem, menuBack);
 
 //MenuItem(miSettings3, "Schalten",      miBack,         miSettings2,    miExit,      miT1,          menuDummy);
 MenuItem(miSettings3, "Schalten",      Menu::NullItem, miSettings2,    miExit,      miT1,          menuDummy);
@@ -305,10 +307,11 @@ MenuItem(miSettings2, "Setup Params",   miSettings3,    miSettings1,    miExit, 
   MenuItem(miSW2,    "min. temp. S1",   miSW3,          miSW1,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW3,    "min. temp. S2",   miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW4,    "Hysteresis On",   miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW5,    "Hysteresis Off",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "Meas. interval",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW7,    "Runtime/Day",     miSWBack,       miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW7,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW5,    "Dewp. diff On",   miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW6,    "Dewp. diff Off",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "Meas. interval",  miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW8,    "Runtime/Day",     miSWBack,       miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW8,          miSettings2, Menu::NullItem, menuBack);
 
 MenuItem(miSettings3, "Switch on/off",  miBack,           miSettings2,       miExit,      miT1,          menuDummy);
   MenuItem(miT1,      "Fan",            miT2,             Menu::NullItem,    miSettings3, Menu::NullItem, menuOnOff);
@@ -322,9 +325,11 @@ MenuItem(miBack, "Back \02",   Menu::NullItem,    miSettings2,       miExit,    
 void buzzer(uint16_t dura) {
  trigger_backlight(); // alerting display
 #ifdef BUZZER
+ uint32_t beep;
  if (cust_params[HAVE_BEEPER]) {
   if (dura == 0) { // 0 = Alert
-    while ((millis() - curr_millis) <= 3000) {
+    beep = millis();
+    while ((millis() - beep) <= 3000) {
      TONE_ON;
      delay(400);
      TONE_OFF;
@@ -368,7 +373,7 @@ void set_relay(uint8_t relay, bool trig) {
 #endif
  if (trig && !is_dev_on[relay]) {
   dev_start = millis();                     // store start time
-  fan_run_millis = dev_start;
+  dev_run_millis = dev_start;
  } else if (is_dev_on[relay] && !trig) {  
   total_run[relay] += (millis() - dev_start) / 60000; 
   daily_run[relay] += (millis() - dev_start) / 60000; // sum daily runtime for 24h-limit
@@ -434,7 +439,7 @@ void sprint_report(void) {
       if (is_dev_on[i]) {
         Serial.print(F("Geraet ist AN! "));
         Serial.print(F("Laufzeit: "));
-        rtime = ((millis() - fan_run_millis)/60000);
+        rtime = ((millis() - dev_run_millis)/60000);
         Serial.print(rtime);
         Serial.print(F(" min. | "));
       }      
@@ -442,16 +447,22 @@ void sprint_report(void) {
       Serial.print(daily_run[i] + rtime);
       Serial.print(F("m \tGesamt: "));
       Serial.print(total_run[i] + rtime);
-      Serial.println("m");
-  }
+      if (i == DEHYD && cust_params[HAVE_WIFI] == 0) {
+        Serial.println(F("m (nicht konfiguriert!)"));
+      } else {
+        Serial.println("m");
+      }
+    }
 
-  OUT_SER(F("max. Luefterlaufzeit: "));
+  OUT_SER(F("max. Geraetelaufzeit/Tag: "));
   OUT_SER(cust_params[MAX_LRUN]);
-  OUT_SER(F("min. \tLuefterpause: "));
+  OUT_SER(F("m/"));
+  OUT_SER(cust_params[MAX_PER_24H]);
+  OUT_SER(F("m \tGeraetepause: "));
   OUT_SER(cust_params[L_PAUSE]);
-  OUT_SERLN(F("min."));
+  OUT_SERLN("m");
 
-  OUT_SER(F("Gesamtbetriebszeit: "));
+  OUT_SER(F("Steuerung aktiv seit: "));
   rtime = (millis()/60000)/60/24;
   OUT_SER(rtime);
   OUT_SER(F("d "));
@@ -460,55 +471,44 @@ void sprint_report(void) {
   OUT_SER(F("h "));
   rtime = (millis()/60000 % 60) ;
   OUT_SER(rtime);
-  OUT_SER(F("m \tLaufzeit Max/Tag: "));
-  OUT_SER(cust_params[MAX_LRUN]);
-  OUT_SER(F("m/"));
-  OUT_SER(cust_params[MAX_PER_24H]);
-  OUT_SERLN(F("m"));
- 
-  OUT_SER(F("Konfiguration Entfeuchter: "));
-  OUT_SER(cust_params[HAVE_DEHYD]);
-  OUT_SER(F(" \tWifi: "));
+  OUT_SER(F("m \tCloud aktiv: "));
   OUT_SERLN(cust_params[HAVE_WIFI]);
+ 
+  OUT_SER(F("Schwellwert Feuchte: "));
+  OUT_SER(cust_params[HUM_MAX]);
+  OUT_SER(F("% \tHysterese Feuchte: "));
+  OUT_SER(cust_params[HYSTERESIS_HUM]);
+  OUT_SERLN("%");
+
+  OUT_SER(F("Taupunkt Diff. ein: "));
+  OUT_SER(cust_params[TAUPUNKTDIFF_ON]);
+  OUT_SER(F("°K \taus: "));
+  OUT_SER(cust_params[TAUPUNKTDIFF_OFF]);
+  OUT_SERLN(F("°K"));
 
   OUT_SER(F("Messintervall: "));
   OUT_SER(cust_params[INTERVAL]);
-  OUT_SER(F("s \tHysterese ein: "));
-  OUT_SER(cust_params[HYSTERESIS_ON]);
-  OUT_SER(F("°K | aus: "));
-  OUT_SER(cust_params[HYSTERESIS_OFF]);
-  OUT_SERLN("°K");
-
-  OUT_SER(F("Schwellwert: "));
-  OUT_SER(cust_params[HUM_MAX]);
-  OUT_SER(F("% \tMinTemp. Innen: "));
+  OUT_SER(F("s \tMinTemp. Innen: "));
   OUT_SER(cust_params[T_IN_MIN]);
-  OUT_SER(F("°C | MinTemp. Aussen: "));
+  OUT_SER(F("°C | Aussen: "));
   OUT_SER(cust_params[T_OUT_MIN]);
-  OUT_SERLN("°C");
+  OUT_SERLN(F("°C"));
 
   OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
   
   DEBUG_PRINTLN(F("\n##### DEBUG ######"));
 
-  DEBUG_PRINT(F("Switch on [Dewpoint_S2 <= (Dewpoint_S1 - Hysteresis_on)]: "));
+  DEBUG_PRINTLN(F("Switch on [(Dewpoint_S1 - Dewpoint_S2) >= TAUPUNKTDIFF_ON)]: "));
+  DEBUG_PRINT(dew_i);
+  DEBUG_PRINT(F(" - "));
   DEBUG_PRINT(dew_o);
-  DEBUG_PRINT(F(" <= "));
-  DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_ON]);
-  DEBUG_PRINTLN("?");
-  DEBUG_PRINT(F("Switch off [Dewpoint_S2 > (Dewpoint_S1 - Hysteresis_off)]: "));
-  DEBUG_PRINT(dew_o);
-  DEBUG_PRINT(F(" > "));
-  DEBUG_PRINT(dew_i - cust_params[HYSTERESIS_OFF]);
-  DEBUG_PRINTLN("?");
-  DEBUG_PRINT(F("Dewpoint difference dew_i - dew_o: "));
-  DEBUG_PRINTLN(dew_i - dew_o);
+  DEBUG_PRINT(F(" = "));
+  DEBUG_PRINT((float)(dew_i - dew_o));
+  DEBUG_PRINT(F(" >= TAUPUNKTDIFF?: "));
+  DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_ON]);
 
-  DEBUG_PRINT(F("\ncurr_millis: "));
-  DEBUG_PRINT(curr_millis);
-  DEBUG_PRINT(" (");
-  DEBUG_PRINT(curr_millis/1000/60);
-  DEBUG_PRINTLN("m)");
+  DEBUG_PRINT(F("Switch off [(Dewpoint_S1 - Dewpoint_S2) < TAUPUNKTDIFF_OFF]: "));
+  DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_OFF]);
 
   DEBUG_PRINTLN(F("\nLaufzeiten 24h/total (min.):"));
   DEBUG_PRINT(F("Luefter: "));
@@ -523,7 +523,7 @@ void sprint_report(void) {
   DEBUG_PRINT(F("\nLCD_ON: "));
   DEBUG_PRINTLN(lcd_on);
   DEBUG_PRINT(F("LCD_TIME: "));
-  DEBUG_PRINTLN(curr_millis - lcd_millis);
+  DEBUG_PRINTLN(millis() - lcd_millis);
     
 #endif
 }

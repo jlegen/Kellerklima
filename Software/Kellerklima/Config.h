@@ -112,10 +112,11 @@ const PROGMEM char cmd_3[] = {"tempi"};
 const PROGMEM char cmd_4[] = {"tempo"};
 const PROGMEM char cmd_5[] = {"max"};
 const PROGMEM char cmd_6[] = {"int"};
-const PROGMEM char cmd_7[] = {"hyston"};
-const PROGMEM char cmd_8[] = {"hystoff"};
-const PROGMEM char cmd_9[] = {"save"};
-const PROGMEM char cmd_10[] = {"hilfe"};
+const PROGMEM char cmd_7[] = {"hysthum"};
+const PROGMEM char cmd_8[] = {"dtauon"};
+const PROGMEM char cmd_9[] = {"dtauoff"};
+const PROGMEM char cmd_10[] = {"save"};
+const PROGMEM char cmd_11[] = {"hilfe"};
 
 const PROGMEM char hlp_0[] = {"Luefter r1=1: an | r1=0: aus"};
 const PROGMEM char hlp_1[] = {"Entfeuchter r2=1: an | r2=0: aus"};
@@ -124,14 +125,15 @@ const PROGMEM char hlp_3[] = {"Mindest-Temperatur 'Innen'"};
 const PROGMEM char hlp_4[] = {"Mindest-Temperatur 'Aussen'"};
 const PROGMEM char hlp_5[] = {"maximale Geraetelaufzeit pro 24h (Min.)"};
 const PROGMEM char hlp_6[] = {"Messintervall (Sek.)"};
-const PROGMEM char hlp_7[] = {"Hysterese ein (%)"};
-const PROGMEM char hlp_8[] = {"Hysterese aus (%)"};
-const PROGMEM char hlp_9[] = {"Speichern aller Parameter"};
-const PROGMEM char hlp_10[] = {""};
+const PROGMEM char hlp_7[] = {"Hysterese Feuchteschwellwert (%)"};
+const PROGMEM char hlp_8[] = {"Taupunktdifferenz ein (K)"};
+const PROGMEM char hlp_9[] = {"Taupunktdifferenz aus (K)"};
+const PROGMEM char hlp_10[] = {"Speichern aller Parameter"};
+const PROGMEM char hlp_11[] = {""};
 #endif
 
-const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8, cmd_9, cmd_10};
-const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8,hlp_9,hlp_10};
+const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8,cmd_9,cmd_10,cmd_11};
+const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8,hlp_9,hlp_10,hlp_11};
 
 #ifdef GERMAN
 const char *GNAME[] = {"L\365fter", "Entfeuchter"};
@@ -153,10 +155,9 @@ FT(MSGCOLD,     "zu kalt: ");
 FT(RUNTIME,     "Laufzeit: ");
 FT(CURRDATA,    "Aktuelle Daten:");
 FT(MEASRUN,     "Messung l\341uft...");
-FT(HYSTON,      "Hyster. ein: ");
-FT(HYSTOFF,     "Hyster. aus: ");
-//FT(DEVFAN,      "L\365fter ");
-//FT(DEVDEHYD,    "Entfeuch. ");
+FT(HYSTHUM,      "Hyster. Feuchte: ");
+FT(DTAUDIFF1,   "dTau ein: ");
+FT(DTAUDIFF0,   "dTau aus: ");
 FT(DEVON,       "Ger\341t an: ");
 FT(MAXRUN,      "max. Laufz. ");
 FT(PauseLen,    "Dauer Pause ");
@@ -165,6 +166,8 @@ FT(MnuYes,      "   Ja");
 FT(MnuNo,       " Nein");
 FT(DewS1,       "Tau S1: ");
 FT(DewS2,       "Tau S2: ");
+FT(TempS1,      "Innentemp: ");
+FT(TempS2,      "Aussentemp: ");
 FT(StartFrom,   "Start ab: ");
 FT(dTau,        "dTau: ");
 FT(Blank4,      "      ");
@@ -202,10 +205,9 @@ FT(MSGCOLD,     "too cold: ");
 FT(RUNTIME,     "Runtime: ");
 FT(CURRDATA,    "Current Data:   ");
 FT(MEASRUN,     "Cycle running...");
-FT(HYSTON,      "Hyster. on: ");
-FT(HYSTOFF,     "Hyster. off: ");
-//FT(DEVFAN,      "Fan ");
-//FT(DEVDEHYD,    "Dehydr.  ");
+FT(HYSTHUM,     "Hyster. hum.: ");
+FT(DTAUDIFF1,   "dDewp. on: ");
+FT(DTAUDIFF0,   "dDewp. off: ");
 FT(DEVON,       "Device on: ");
 FT(MAXRUN,      "max. Runt. ");
 FT(PauseLen,    "Len. Pause ");
@@ -214,6 +216,8 @@ FT(MnuYes,      " Yes");
 FT(MnuNo,       "  No");
 FT(DewS1,       "Dew S1 ");
 FT(DewS2,       "Dew S2 ");
+FT(TempS1,      "Indoor T: ");
+FT(TempS2,      "Outdoor T: ");
 FT(StartFrom,   "Starting: ");
 FT(dTau,        "dDew: ");
 FT(Blank4,      "      ");
@@ -232,18 +236,19 @@ FT(OK_REST,     "REST Setup Ok!  ");
 
 //char buf[20]; // generic char buffer
 
-#define MAX_SHOW_SCREENS 17 // number of LCD screens to update if rotating
+#define MAX_SHOW_SCREENS 18 // number of LCD screens to update if rotating
 
 uint8_t my_relays[] = {Relais_L, Relais_E};
 
 // Messvars
+unsigned long twentyfour_millis = 0;    // 24h-Periodenzähler f. Zurücksetzen der Tageslaufzeiten
 unsigned long prev_millis = 0;
-unsigned long curr_millis = 0;
-unsigned long fan_run_millis = 0;
-unsigned long fan_pause_millis = 0;
+unsigned long dev_run_millis = 0;       // aktuelle Laufzeit Gerät
+unsigned long fan_pause_millis = 0;     // Timer Pause für Lüfter nach max. Laufzeit
 unsigned long lcd_millis = 0;
 unsigned long milliMil = 0;
 #define DECIMALS 2
+#define TWENTYFOUR 86400000
 
 unsigned long total_run[] = {0, 0};
 unsigned long daily_run[] = {0, 0};
@@ -256,8 +261,8 @@ float temp_i = 0;
 float temp_o = 0;
 float dew_i = 0;
 float dew_o = 0;
-float dew_i2 = 0;
-float dew_o2 = 0;
+//float dew_i2 = 0;
+//float dew_o2 = 0;
 
 static char is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
 uint8_t act_symb = 0; // show activity symbol
@@ -267,24 +272,44 @@ uint8_t control_override = false; // override controller by manual switch
 //
 // Kellerparameter
 //
-#define HUM_MAX        0 //starte Lüftung ab x%
-#define T_IN_MIN       1 //kein Start unter x° innen
-#define T_OUT_MIN      2 //kein Start unter x° aussen
-#define HYSTERESIS_ON  3 //Einschalthysterese (Taupunktdiff.)
-#define HYSTERESIS_OFF 4 //Ausschalthysterese (Taupunktdiff.)
-#define HAVE_DEHYD     5 //Entfeuchter angeschlossen?
-#define MAX_LRUN       6 //max. Lüfterlaufzeit in Minuten
-#define L_PAUSE        7 //Lüfterpause in Minuten (Stop nach max. Laufzeiten ohne pos. Ergebnis)
-#define HAVE_WIFI      8 //Wifi enabled?
-#define HAVE_BEEPER    9 //Buzzer enabled?
-#define INTERVAL      10 // Messintervall (seconds), default=60s
-#define MAX_PER_24H   11 // max. Lüfterlaufzeit pro 24h (min.)
+#define HUM_MAX           0 //starte Lüftung ab x%
+#define T_IN_MIN          1 //kein Start unter x° innen
+#define T_OUT_MIN         2 //kein Start unter x° aussen
+#define HYSTERESIS_HUM    3 //Hysterese Feuchte % (Abschaltbedingung)
+#define TAUPUNKTDIFF_ON   4 //obere Taupunktdifferenz K
+#define HAVE_DEHYD        5 //Entfeuchter angeschlossen?
+#define MAX_LRUN          6 //max. Lüfterlaufzeit in Minuten
+#define L_PAUSE           7 //Lüfterpause in Minuten (Stop nach max. Laufzeiten ohne pos. Ergebnis)
+#define HAVE_WIFI         8 //Wifi enabled?
+#define HAVE_BEEPER       9 //Buzzer enabled?
+#define INTERVAL         10 //Messintervall (seconds), default=60s
+#define MAX_PER_24H      11 //max. Lüfterlaufzeit pro 24h (min.)
+#define TAUPUNKTDIFF_OFF 12 //untere Taupunktdifferenz K
+// for now: use TAUPUNKTDIFF/2 as hysteresis
+
+/* source1: https://www.schwille.de/wp-content/uploads/100-720-Taupunkt-L%C3%BCftungssteuerung.pdf
+   Die Steuerung arbeitet nur nach der eingestellten Taupunktdifferenz (absolute Feuchtigkeit). Die Werkseinstellung ist bei 5°C Taupunkt. 
+   Dies ist ein Erfahrungswert über lange Jahre hin, um die Entfeuchtung zu ge-währleisten und die Ereignisse, in denen die äußeren Bedingungen 
+   dafür geeignet sind. Sie können aber im Prog 12 die Differenz auch verändern von 2°C bis 9 °C Tp. Wenn Sie die Differenz verkleinern, also 
+   gegen 2 gehen lassen, wird sehr oft gelüftet, jedoch kaum noch entfeuchtet. Dies kann natürlich für die Belüftung von Werkstätten oder Büros 
+   sehr nützlich sein. Umgekehrt, erhöhen Sie die Taupunktdifferenz gegen 9 °C wird mehr entfeuchtet, jedoch werden die Ereignisse, dass die 
+   Bedingungen dazu passen, eher seltener  
+   
+   Die  Kellerluft  wird  durch  die  Querlüftung  relativ  schnell  mit  trockener  Außenluft  ausgetauscht, ohne dass sich die Wände abkühlen. 
+   Danach stoppt die Steuerung (bei Taupunkt < 1°C) und wartet erneut auf die eingestellten Lüftungsbedingungen. 
+ */
+
+/* source2: https://www.keller-doktor.de/wcms/ftp//k/keller-doktor.de/uploads/kellerlueftung_10-72_beschreibung.pdf
+   Der Lüfter jedoch ist taupunktgesteuert und arbeitet nur, wenn der Taupunkt am Außensensor (rechteAnzeige) um 2 – 9 °C niedriger ist, 
+   als der Taupunkt am Innensensor. Der Lüfter stoppt wenn dieTaupunkt-Differenz am Außensensor kleiner als 1 °C beträgt (Hysterese = 4 °C). 
+*/
+
 
 // NB: HUM_MAX-Hysteresis = hyst_off
 
 
 // initial defaults
-int16_t cust_params[12] = {60, 12, 4,  2, 1, 0, 120, 120, 0, 1, 60, 360};
+int16_t cust_params[13] = {60, 12, 4,  2, 3, 0, 120, 120, 0, 1, 60, 360, 1};
 int16_t last_value = 0;
 
 // Encoder drehen = Anzeige durchschalten
