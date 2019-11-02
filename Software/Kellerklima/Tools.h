@@ -418,27 +418,26 @@ void sprint_report(void) {
   OUT_SERLN(F("\n----------------------------------------------------------------"));
   OUT_SER(F("Innen  S1: "));
   OUT_SER(F("Feuchte: "));
-  OUT_SER(hum_i);
+  OUT_SER(aktdata.hum_i);
   OUT_SER(F("% \tTemp: "));
-  OUT_SER(temp_i);
+  OUT_SER(aktdata.temp_i);
   OUT_SER(F("°C \tTaupunkt: "));
-  OUT_SERLN(dew_i);
+  OUT_SERLN(aktdata.dew_i);
 
   OUT_SER(F("Aussen S2: "));
   OUT_SER(F("Feuchte: "));
-  OUT_SER(hum_o);
+  OUT_SER(aktdata.hum_o);
   OUT_SER(F("% \tTemp: "));
-  OUT_SER(temp_o);
+  OUT_SER(aktdata.temp_o);
   OUT_SER(F("°C \tTaupunkt: "));
-  OUT_SERLN(dew_o);
+  OUT_SERLN(aktdata.dew_o);
 
   const PROGMEM char *DEV[] = {"Luefter         ", "Entfeuchter     "};
   for (int i=0; i<2; i++) {    
       Serial.print(DEV[i]);
       rtime=0;
       if (is_dev_on[i]) {
-        Serial.print(F("Geraet ist AN! "));
-        Serial.print(F("Laufzeit: "));
+        Serial.print(F("AN seit "));
         rtime = ((millis() - dev_run_millis)/60000);
         Serial.print(rtime);
         Serial.print(F(" min. | "));
@@ -499,32 +498,17 @@ void sprint_report(void) {
   DEBUG_PRINTLN(F("\n##### DEBUG ######"));
 
   DEBUG_PRINTLN(F("Switch on [(Dewpoint_S1 - Dewpoint_S2) >= TAUPUNKTDIFF_ON)]: "));
-  DEBUG_PRINT(dew_i);
+  DEBUG_PRINT(aktdata.dew_i);
   DEBUG_PRINT(F(" - "));
-  DEBUG_PRINT(dew_o);
+  DEBUG_PRINT(aktdata.dew_o);
   DEBUG_PRINT(F(" = "));
-  DEBUG_PRINT((float)(dew_i - dew_o));
+  DEBUG_PRINT((float)(aktdata.dew_i - aktdata.dew_o));
   DEBUG_PRINT(F(" >= TAUPUNKTDIFF?: "));
   DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_ON]);
 
   DEBUG_PRINT(F("Switch off [(Dewpoint_S1 - Dewpoint_S2) < TAUPUNKTDIFF_OFF]: "));
   DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_OFF]);
-
-  DEBUG_PRINTLN(F("\nLaufzeiten 24h/total (min.):"));
-  DEBUG_PRINT(F("Luefter: "));
-  DEBUG_PRINT(daily_run[FAN]);
-  DEBUG_PRINT("/");
-  DEBUG_PRINTLN(total_run[FAN]);
-  DEBUG_PRINT(F("Entf.: "));
-  DEBUG_PRINT(daily_run[DEHYD]);
-  DEBUG_PRINT("/");
-  DEBUG_PRINTLN(total_run[DEHYD]);
   
-  DEBUG_PRINT(F("\nLCD_ON: "));
-  DEBUG_PRINTLN(lcd_on);
-  DEBUG_PRINT(F("LCD_TIME: "));
-  DEBUG_PRINTLN(millis() - lcd_millis);
-    
 #endif
 }
 

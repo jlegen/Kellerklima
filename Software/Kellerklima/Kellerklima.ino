@@ -200,9 +200,6 @@ void setup() {
   }
   delay(2000);
 
-//DEBUG_PRINT(F("Test TaupunktDiff_ON durch 2: "));
-//DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_ON]/2);
-
   OUT_SERLN("");
   OUT_SER(F("Prima Kellerklima "));
   OUT_SERLN(VERSION);
@@ -485,16 +482,17 @@ int16_t *iValue;
     break;
   }
 
-  if (c >= 0 && c < 11) {
-    Serial.print("\n");
-    Serial.print(get_help(c));
+  //if (c >= 0 && c < 12) {
+  if (c >= 0 && c < ARRAY_SIZE(CMDS)) {
+    OUT_SER("\n");
+    OUT_SER(get_help(c));
     if (val != -1000) {
-      Serial.print(": ");
-      Serial.print(val);
+      OUT_SER(": ");
+      OUT_SER(val);
     }
-    Serial.print("\n");
+    OUT_SER("\n");
   } else {
-    Serial.println(F("\nBefehl unbekannt"));
+    OUT_SERLN(F("\nBefehl unbekannt"));
   }
 
  }
@@ -533,12 +531,12 @@ void do_measure(void) {
     // DHT22
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    hum_i  = roundFloat(dht_i.readHumidity(), DECIMALS);
-    temp_i = roundFloat(dht_i.readTemperature(), DECIMALS);
+    aktdata.hum_i  = roundFloat(dht_i.readHumidity(), DECIMALS);
+    aktdata.temp_i = roundFloat(dht_i.readTemperature(), DECIMALS);
 #endif
 #ifdef DHTPIN_O
-    hum_o  = roundFloat(dht_o.readHumidity(), DECIMALS);
-    temp_o = roundFloat(dht_o.readTemperature(), DECIMALS);
+    aktdata.hum_o  = roundFloat(dht_o.readHumidity(), DECIMALS);
+    aktdata.temp_o = roundFloat(dht_o.readTemperature(), DECIMALS);
 #endif
 #ifdef I2C_SENSOR1 
   // SHT31, BME280
@@ -546,31 +544,31 @@ void do_measure(void) {
   #ifdef BMEI2C1
    sens_i.readSensor();
   #endif
-  hum_i  = roundFloat(sens_i.getHumidity(), DECIMALS);
-  temp_i = roundFloat(sens_i.getTemperature_C(), DECIMALS);
+  aktdata.hum_i  = roundFloat(sens_i.getHumidity(), DECIMALS);
+  aktdata.temp_i = roundFloat(sens_i.getTemperature_C(), DECIMALS);
   //dew_i2 = roundFloat(sens_i.getDewPoint(), DECIMALS);
 #endif
 #ifdef I2C_SENSOR2
   #ifdef BMEI2C2
    sens_o.readSensor();
   #endif
-  hum_o  = roundFloat(sens_o.getHumidity(), DECIMALS);
-  temp_o = roundFloat(sens_o.getTemperature_C(), DECIMALS);
+  aktdata.hum_o  = roundFloat(sens_o.getHumidity(), DECIMALS);
+  aktdata.temp_o = roundFloat(sens_o.getTemperature_C(), DECIMALS);
   //dew_o2 = roundFloat(sens_o.getDewPoint(), DECIMALS);
 #endif
 
 #ifdef FAKE
-    hum_i = 62.0;
-    hum_o = 55.0;
-    temp_i = 15.0;
-    temp_o = 12.0;
+    aktdata.hum_i = 62.0;
+    aktdata.hum_o = 55.0;
+    aktdata.temp_i = 15.0;
+    aktdata.temp_o = 12.0;
 #endif
 
     lcd.clear();
     lcd.home();
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(hum_i) || isnan(temp_i) ) {
+    if (isnan(aktdata.hum_i) || isnan(aktdata.temp_i) ) {
       OUT_SER("\n=> ");
       OUT_SER(FS(OutErrSensor));
       OUT_SERLN("S1!");
@@ -579,7 +577,7 @@ void do_measure(void) {
       buzzer(0);
       return;  // skip this measure cycle
     }
-    if (isnan(hum_o) || isnan(temp_o) ) {
+    if (isnan(aktdata.hum_o) || isnan(aktdata.temp_o) ) {
       OUT_SER("\n=> ");
       OUT_SER(FS(OutErrSensor));
       OUT_SERLN("S2!");
@@ -590,8 +588,10 @@ void do_measure(void) {
     }
     
     // Dewpoints
-    dew_i = roundFloat(DewPoint(temp_i, hum_i), DECIMALS);
-    dew_o = roundFloat(DewPoint(temp_o, hum_o), DECIMALS);
+    aktdata.dew_i = roundFloat(DewPoint(aktdata.temp_i, aktdata.hum_i), DECIMALS);
+    aktdata.dew_o = roundFloat(DewPoint(aktdata.temp_o, aktdata.hum_o), DECIMALS);
+
+    //mydata = {hum_i, hum_o, temp_i, temp_o, dew_i, dew_o};
 
     // new display: show code for possible statuses
     // 0: keine Aktivität / "Keller trocken"
@@ -609,28 +609,28 @@ void do_measure(void) {
     lcd.print("I: ");
     //lcdPrintFloat(temp_i,1,4);
     //lcd.print("\337C ");
-    lcd.print(hum_i,1);
+    lcd.print(aktdata.hum_i,1);
     lcd.print("% ");
-    lcd.print(dew_i,1);
-    lcd.print("K");
+    lcd.print(aktdata.dew_i,1);
+    lcd.print("°K");
 
     lcd.setCursor(0, 1);
     lcd.print("O: ");
-    //lcdPrintFloat(temp_o, 1, 4);
+    //lcdPrintFloat(aktdata.temp_o, 1, 4);
     //lcd.print("\337C ");
-    lcd.print(hum_o,1);
+    lcd.print(aktdata.hum_o,1);
     lcd.print("% ");
-    lcd.print(dew_o,1);
-    lcd.print("K");
+    lcd.print(aktdata.dew_o,1);
+    lcd.print("°K");
 
     // LED Indicator
     digitalWrite(ActLED, false);
 
     // Lüftersteuerung
-    dev_stop(check_switch_rules(FAN, dew_i, dew_o), FAN); 
+    dev_stop(check_switch_rules(FAN), FAN); 
     
     // Entfeuchtersteuerung
-    dev_stop(check_switch_rules(DEHYD, dew_i, dew_o), DEHYD);
+    dev_stop(check_switch_rules(DEHYD), DEHYD);
 
 #if defined DEBUG || defined SERIAL_OUT
     sprint_report();
@@ -680,7 +680,7 @@ void do_measure(void) {
 
 // ####################################################################################################
 // prüfe diverse Bedingungen für Lüfterstart/stop
-bool check_switch_rules(uint8_t dev, uint8_t dewp_i, uint8_t dewp_o) {
+bool check_switch_rules(uint8_t dev) {
 unsigned long current_runtime = 0;
 //unsigned long still_to_wait = 0;
 
@@ -716,30 +716,30 @@ unsigned long current_runtime = 0;
   // do not start any device if indoor humidity is too low; stop device if running (using same hysteresis as for dew point)
 
   // device is not running & hum_i is lower than trigger => stop processing 
-  if ((is_dev_on[dev] == false) && (hum_i <= cust_params[HUM_MAX])) {
+  if ((is_dev_on[dev] == false) && (aktdata.hum_i <= cust_params[HUM_MAX])) {
     return(false);
   }
   
   // device is not running & hum_i is greater than trigger => pass on to switch decision 
-  if ((is_dev_on[dev] == false) && (hum_i > (float)cust_params[HUM_MAX])) {
+  if ((is_dev_on[dev] == false) && (aktdata.hum_i > (float)cust_params[HUM_MAX])) {
     // is true = pass through
     DEBUG_PRINTLN(F("\nFeuchteschwellwert ueberschritten - pruefe Einschaltbedingungen..."));
   }
 
   // device is running, and hum_i is below trigger incl. hysteresis => switch off
-  if ((is_dev_on[dev] == true) && (hum_i < (float)(cust_params[HUM_MAX] - cust_params[HYSTERESIS_HUM]))) {
+  if ((is_dev_on[dev] == true) && (aktdata.hum_i < (float)(cust_params[HUM_MAX] - cust_params[HYSTERESIS_HUM]))) {
     // switch off
     lcd.clear();
     FPL(MSGOK);
     lcd.setCursor(0,1);
     lcd.print("S1: ");
-    lcd.print(hum_i,1);
+    lcd.print(aktdata.hum_i,1);
     lcd.print("% < ");
     lcd.print(cust_params[HUM_MAX]);
     lcd.print("%");
     buzzer(200);
     DEBUG_PRINT(F("\nFeuchteschwellwert unterschritten: "));
-    DEBUG_PRINTLN(hum_i);
+    DEBUG_PRINTLN(aktdata.hum_i);
     delay(1000);
     return(true);
   }
@@ -794,10 +794,10 @@ unsigned long current_runtime = 0;
   // ##### main activation rule #####
   // ################################
   // is indoor dewpoint higher than outdoors, incl. hysreresis? (dp_in min. 2° more than dp_out, when hyst_on = 2)
-  if (((float)(dewp_i  - dewp_o) >= (float)cust_params[TAUPUNKTDIFF_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
-  //if (dewp_o <= (dewp_i - cust_params[HYSTERESIS_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
+  if (((float)(aktdata.dew_i  - aktdata.dew_o) >= (float)cust_params[TAUPUNKTDIFF_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
+  //if (dew_o <= (dew_i - cust_params[HYSTERESIS_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
     // check minimal temperatures for fan - DEHUM may always run!
-    if (dev == DEHYD || ((temp_i >= (float)cust_params[T_IN_MIN]) && (temp_o >= (float)cust_params[T_OUT_MIN]))) { 
+    if (dev == DEHYD || ((aktdata.temp_i >= (float)cust_params[T_IN_MIN]) && (aktdata.temp_o >= (float)cust_params[T_OUT_MIN]))) { 
          if (is_dev_on[dev] == false) {      
            set_relay(dev, true);             // Lüfter/Dehum einschalten, Laufzeit-Timer starten
            lcd.setCursor(0, 1);
@@ -808,23 +808,21 @@ unsigned long current_runtime = 0;
            DEBUG_PRINT(F("Geraet aktiviert: "));
            DEBUG_PRINTLN(GNAME[dev]);
            DEBUG_PRINT(F("dtau: "));
-           DEBUG_PRINTLN((float)(dewp_i - dewp_o));
-           DEBUG_PRINT(F("dTau Ein: "));
-           DEBUG_PRINTLN((float)cust_params[TAUPUNKTDIFF_ON]);
+           DEBUG_PRINTLN((float)(aktdata.dew_i - aktdata.dew_o));
          }
         // FAN off because temps are too low
-      } else if ((dev == FAN) && ((temp_i < (float)(cust_params[T_IN_MIN] - TEMP_HYSTERESIS)) || (temp_o < (float)(cust_params[T_OUT_MIN] - TEMP_HYSTERESIS)))) {  // Temperaturen zu niedrig
+      } else if ((dev == FAN) && ((aktdata.temp_i < (float)(cust_params[T_IN_MIN] - TEMP_HYSTERESIS)) || (aktdata.temp_o < (float)(cust_params[T_OUT_MIN] - TEMP_HYSTERESIS)))) {  // Temperaturen zu niedrig
          if (is_dev_on[dev]) {
           //do_stop = true;
           lcd.setCursor(0,1);
-          if (temp_i < cust_params[T_IN_MIN]) {
+          if (aktdata.temp_i < cust_params[T_IN_MIN]) {
            lcd.print("S1 ");
            FPL(MSGCOLD);
-           lcd.print(temp_i,1);
+           lcd.print(aktdata.temp_i,1);
           } else {
            lcd.print("S2 ");
            FPL(MSGCOLD);
-           lcd.print(temp_o,1);
+           lcd.print(aktdata.temp_o,1);
           }
           delay(1000);
           DEBUG_PRINTLN(F("\nLuefter deaktiviert, da Innen/Aussentemp. zu gering!"));
@@ -832,12 +830,10 @@ unsigned long current_runtime = 0;
          }
       }
     // stop FAN if dTau outdoors is greater than indoors incl. hysteresis
-  //} else if ((dev == FAN) && (dewp_o > (float)(dewp_i - cust_params[TAUPUNKTDIFF_ON]) ) ) { // switch off when dp_out only max. 1° less than dp_in (when hyst_off = 1)
-  } else if ((dev == FAN) && ((float)(dewp_i - dewp_o) < (float)(cust_params[TAUPUNKTDIFF_OFF]) ) ) { // switch off when dp-diff is smaller than minimal diff of dew point 
+  //} else if ((dev == FAN) && (dew_o > (float)(dew_i - cust_params[TAUPUNKTDIFF_ON]) ) ) { // switch off when dp_out only max. 1° less than dp_in (when hyst_off = 1)
+  } else if ((dev == FAN) && ((aktdata.dew_i - aktdata.dew_o) < (float)(cust_params[TAUPUNKTDIFF_OFF]) ) ) { // switch off when dp-diff is smaller than minimal diff of dew point 
          DEBUG_PRINT(F("\nLuefter deaktiviert, da Taupunktdifferenz zu gering: "));
-         DEBUG_PRINTLN((float)(dewp_i - dewp_o));
-         DEBUG_PRINT(F("dTau Aus: "));
-         DEBUG_PRINTLN((float)cust_params[TAUPUNKTDIFF_OFF]);
+         DEBUG_PRINTLN(aktdata.dew_i - aktdata.dew_o);
          return(true);
   }
 
@@ -876,17 +872,17 @@ void update_screen(uint8_t screen) {
   case 1:
     //FPL(DewS1);
     FPL(TempS1);
-    lcdPrintFloat(temp_i,1,4);
+    lcdPrintFloat(aktdata.temp_i,1,4);
     lcd.print("\337C ");
-    //lcd.print(dew_i,1);
+    //lcd.print(aktdata.dew_i,1);
     //lcd.print("\337C");
   break;
   case 2:
     //FPL(DewS2);
-    FPL(TempS1);
-    lcdPrintFloat(temp_o,1,4);
+    FPL(TempS2);
+    lcdPrintFloat(aktdata.temp_o,1,4);
     lcd.print("\337C ");
-    //lcd.print(dew_o,1);
+    //lcd.print(aktdata.dew_o,1);
     //lcd.print("\337C");
   break;
   case 3:

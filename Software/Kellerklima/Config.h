@@ -155,7 +155,7 @@ FT(MSGCOLD,     "zu kalt: ");
 FT(RUNTIME,     "Laufzeit: ");
 FT(CURRDATA,    "Aktuelle Daten:");
 FT(MEASRUN,     "Messung l\341uft...");
-FT(HYSTHUM,      "Hyster. Feuchte: ");
+FT(HYSTHUM,     "Hyst.Feuchte: ");
 FT(DTAUDIFF1,   "dTau ein: ");
 FT(DTAUDIFF0,   "dTau aus: ");
 FT(DEVON,       "Ger\341t an: ");
@@ -255,14 +255,24 @@ unsigned long daily_run[] = {0, 0};
 unsigned long dev_start = 0;
 
 // Messwerte
-float hum_i = 0;
-float hum_o = 0;
-float temp_i = 0;
-float temp_o = 0;
-float dew_i = 0;
-float dew_o = 0;
-//float dew_i2 = 0;
-//float dew_o2 = 0;
+//float hum_i = 0;
+//float hum_o = 0;
+//float temp_i = 0;
+//float temp_o = 0;
+//float dew_i = 0;
+//float dew_o = 0;
+////float dew_i2 = 0;
+////float dew_o2 = 0;
+
+struct Climate {
+  float hum_i;
+  float hum_o;
+  float temp_i;
+  float temp_o;
+  float dew_i;
+  float dew_o;
+};
+Climate aktdata;
 
 static char is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
 uint8_t act_symb = 0; // show activity symbol
