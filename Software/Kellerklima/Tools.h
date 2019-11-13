@@ -446,7 +446,7 @@ void sprint_report(void) {
       Serial.print(daily_run[i] + rtime);
       Serial.print(F("m \tGesamt: "));
       Serial.print(total_run[i] + rtime);
-      if (i == DEHYD && cust_params[HAVE_WIFI] == 0) {
+      if (i == DEHYD && cust_params[HAVE_DEHYD] == 0) {
         Serial.println(F("m (nicht konfiguriert!)"));
       } else {
         Serial.println("m");
@@ -473,13 +473,13 @@ void sprint_report(void) {
   OUT_SER(F("m \tCloud aktiv: "));
   OUT_SERLN(cust_params[HAVE_WIFI]);
  
-  OUT_SER(F("Schwellwert Feuchte: "));
+  OUT_SER(F("Schwellwert Feuchte: \t"));
   OUT_SER(cust_params[HUM_MAX]);
   OUT_SER(F("% \tHysterese Feuchte: "));
   OUT_SER(cust_params[HYSTERESIS_HUM]);
   OUT_SERLN("%");
 
-  OUT_SER(F("Taupunkt Diff. ein: "));
+  OUT_SER(F("Taupunkt Diff. ein: \t"));
   OUT_SER(cust_params[TAUPUNKTDIFF_ON]);
   OUT_SER(F("°K \taus: "));
   OUT_SER(cust_params[TAUPUNKTDIFF_OFF]);
@@ -495,9 +495,10 @@ void sprint_report(void) {
 
   OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
   
-  DEBUG_PRINTLN(F("\n##### DEBUG ######"));
+  OUT_SERLN(F("\n----------------------------------------------------------------"));
 
-  DEBUG_PRINTLN(F("Switch on [(Dewpoint_S1 - Dewpoint_S2) >= TAUPUNKTDIFF_ON)]: "));
+  DEBUG_PRINTLN(F("DEBUG: Switch on [(Dewpoint_S1 - Dewpoint_S2) >= TAUPUNKTDIFF_ON)]: "));
+  DEBUG_PRINT(F("DEBUG: "));
   DEBUG_PRINT(aktdata.dew_i);
   DEBUG_PRINT(F(" - "));
   DEBUG_PRINT(aktdata.dew_o);
@@ -506,9 +507,10 @@ void sprint_report(void) {
   DEBUG_PRINT(F(" >= TAUPUNKTDIFF?: "));
   DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_ON]);
 
-  DEBUG_PRINT(F("Switch off [(Dewpoint_S1 - Dewpoint_S2) < TAUPUNKTDIFF_OFF]: "));
+  DEBUG_PRINT(F("DEBUG: Switch off [(Dewpoint_S1 - Dewpoint_S2) < TAUPUNKTDIFF_OFF]: "));
   DEBUG_PRINTLN(cust_params[TAUPUNKTDIFF_OFF]);
-  
+  DEBUG_PRINTLN("\n");
+
 #endif
 }
 

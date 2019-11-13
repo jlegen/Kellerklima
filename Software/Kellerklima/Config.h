@@ -255,15 +255,6 @@ unsigned long daily_run[] = {0, 0};
 unsigned long dev_start = 0;
 
 // Messwerte
-//float hum_i = 0;
-//float hum_o = 0;
-//float temp_i = 0;
-//float temp_o = 0;
-//float dew_i = 0;
-//float dew_o = 0;
-////float dew_i2 = 0;
-////float dew_o2 = 0;
-
 struct Climate {
   float hum_i;
   float hum_o;
@@ -402,22 +393,3 @@ uint8_t systemState = State::Default;
 uint8_t previousSystemState = State::None;
 
 bool updateMenu = false;
-
-/*
-
-I2C speed
-
-long speed[] = { 50, 100, 200, 250, 400, 500, 800 };
-TWBR = (F_CPU/(speed*1000) - 16)/2;
-
-TWBR   prescaler   Frequency
-
- 12       1       400   kHz  (the maximum supported frequency)
- 32       1       200   kHz
- 72       1       100   kHz  (the default)
-152       1        50   kHz
- 78       4        25   kHz
-158       4        12.5 kHz
-
-
- */

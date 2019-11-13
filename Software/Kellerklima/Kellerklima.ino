@@ -18,7 +18,7 @@
 //   - LCDs of other sizes
 //   - BME280 sensors
 //
-// remote flash: use "Netburner Virtual Comport" (create new com port for every flash)
+// remote flash if ESP is attached: use "Netburner Virtual Comport" (create new com port for every flash)
 // 
 
 #include <avr/pgmspace.h>
@@ -591,8 +591,6 @@ void do_measure(void) {
     aktdata.dew_i = roundFloat(DewPoint(aktdata.temp_i, aktdata.hum_i), DECIMALS);
     aktdata.dew_o = roundFloat(DewPoint(aktdata.temp_o, aktdata.hum_o), DECIMALS);
 
-    //mydata = {hum_i, hum_o, temp_i, temp_o, dew_i, dew_o};
-
     // new display: show code for possible statuses
     // 0: keine Aktivität / "Keller trocken"
     // 1: Schwellwert Feuchte überschritten, Lüfter/Entf. läuft
@@ -612,7 +610,7 @@ void do_measure(void) {
     lcd.print(aktdata.hum_i,1);
     lcd.print("% ");
     lcd.print(aktdata.dew_i,1);
-    lcd.print("°K");
+    lcd.print("\337K");
 
     lcd.setCursor(0, 1);
     lcd.print("O: ");
@@ -621,15 +619,17 @@ void do_measure(void) {
     lcd.print(aktdata.hum_o,1);
     lcd.print("% ");
     lcd.print(aktdata.dew_o,1);
-    lcd.print("°K");
+    lcd.print("\337K");
 
     // LED Indicator
     digitalWrite(ActLED, false);
 
     // Lüftersteuerung
+    //DEBUG_PRINTLN(F("\n*** DEV_STOP Luefter"));
     dev_stop(check_switch_rules(FAN), FAN); 
     
     // Entfeuchtersteuerung
+    //DEBUG_PRINTLN(F("*** DEV_STOP Entfeuchter"));
     dev_stop(check_switch_rules(DEHYD), DEHYD);
 
 #if defined DEBUG || defined SERIAL_OUT
@@ -682,13 +682,17 @@ void do_measure(void) {
 // prüfe diverse Bedingungen für Lüfterstart/stop
 bool check_switch_rules(uint8_t dev) {
 unsigned long current_runtime = 0;
-//unsigned long still_to_wait = 0;
 
-  if (control_override) return(false); // do not control devices when in manual mode 
+  if (control_override) {
+    DEBUG_PRINTLN(F("Control Override!"));
+    return(false); // do not control devices when in manual mode 
+  }
   
   // no dehumi configured, or no fan pause active => prevent DEHYD from starting; try start in case fan is in 24h-pause
   if (dev == DEHYD) {
-    if (!cust_params[HAVE_DEHYD] || ((fan_pause_millis == 0) && !(daily_run[FAN] >= cust_params[MAX_PER_24H]))) {  
+    //?? ((fan_pause_millis == 0) && !(daily_run[FAN] >= cust_params[MAX_PER_24H]))) {  
+    if (cust_params[HAVE_DEHYD] == 0 || is_dev_on[FAN]) {
+      DEBUG_PRINTLN(F("Entfeuchter: Nicht angeschlossen, oder Luefter laeuft. Stopping"));
       return(true);
     }
   }
@@ -714,16 +718,17 @@ unsigned long current_runtime = 0;
   }
 
   // do not start any device if indoor humidity is too low; stop device if running (using same hysteresis as for dew point)
-
   // device is not running & hum_i is lower than trigger => stop processing 
   if ((is_dev_on[dev] == false) && (aktdata.hum_i <= cust_params[HUM_MAX])) {
+    DEBUG_PRINTLN(F("No device running, and HUM low enough."));
     return(false);
   }
-  
+
   // device is not running & hum_i is greater than trigger => pass on to switch decision 
   if ((is_dev_on[dev] == false) && (aktdata.hum_i > (float)cust_params[HUM_MAX])) {
     // is true = pass through
-    DEBUG_PRINTLN(F("\nFeuchteschwellwert ueberschritten - pruefe Einschaltbedingungen..."));
+    DEBUG_PRINT(F("\nFeuchteschwellwert ueberschritten - pruefe Einschaltbedingungen: "));
+    DEBUG_PRINTLN(GNAME[dev]);
   }
 
   // device is running, and hum_i is below trigger incl. hysteresis => switch off
@@ -738,12 +743,12 @@ unsigned long current_runtime = 0;
     lcd.print(cust_params[HUM_MAX]);
     lcd.print("%");
     buzzer(200);
-    DEBUG_PRINT(F("\nFeuchteschwellwert unterschritten: "));
+    DEBUG_PRINT(F("\nFeuchteschwellwert unterschritten (%): "));
     DEBUG_PRINTLN(aktdata.hum_i);
     delay(1000);
     return(true);
   }
-  
+
   // check pause for device
    if (fan_pause_millis > 0 && ((millis() - fan_pause_millis) >= (unsigned long) (cust_params[L_PAUSE] * 60000))) {
      // pause has been active, and max pause time has been reached
@@ -769,12 +774,11 @@ unsigned long current_runtime = 0;
      FPL(OutPause); // Lüfterpause XXm
      lcd.print((millis() - fan_pause_millis)/60000);
      lcd.print("m  ");
-     DEBUG_PRINT(F("Luefterpause: "));
+     DEBUG_PRINT(F("Luefterpause aktiv seit (Minuten): "));
      DEBUG_PRINTLN((millis() - fan_pause_millis)/60000);
      //delay(1000);
      return(false);
    }
-
 
   // switch off device when configured max runtime is reached = fan pause start ==> dehum start
   if (is_dev_on[dev] && ((millis() - dev_run_millis) >= (unsigned long) (cust_params[MAX_LRUN] * 60000))  ) {   
@@ -794,8 +798,7 @@ unsigned long current_runtime = 0;
   // ##### main activation rule #####
   // ################################
   // is indoor dewpoint higher than outdoors, incl. hysreresis? (dp_in min. 2° more than dp_out, when hyst_on = 2)
-  if (((float)(aktdata.dew_i  - aktdata.dew_o) >= (float)cust_params[TAUPUNKTDIFF_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
-  //if (dew_o <= (dew_i - cust_params[HYSTERESIS_ON]) || dev == DEHYD) { // switch on if dew_out + margin < dew_in
+  if (dev == DEHYD || ((float)(aktdata.dew_i  - aktdata.dew_o) >= (float)cust_params[TAUPUNKTDIFF_ON])) { // switch on if dew_out + margin < dew_in
     // check minimal temperatures for fan - DEHUM may always run!
     if (dev == DEHYD || ((aktdata.temp_i >= (float)cust_params[T_IN_MIN]) && (aktdata.temp_o >= (float)cust_params[T_OUT_MIN]))) { 
          if (is_dev_on[dev] == false) {      
@@ -805,10 +808,13 @@ unsigned long current_runtime = 0;
            FPL(MnuOn);
            FPL(Blank4);
            delay(1000);
-           DEBUG_PRINT(F("Geraet aktiviert: "));
+           DEBUG_PRINT(F("\nGeraet aktiviert: "));
            DEBUG_PRINTLN(GNAME[dev]);
            DEBUG_PRINT(F("dtau: "));
            DEBUG_PRINTLN((float)(aktdata.dew_i - aktdata.dew_o));
+         } else {
+         DEBUG_PRINT(F("Geraet aktiv: "));
+         DEBUG_PRINTLN(GNAME[dev]);
          }
         // FAN off because temps are too low
       } else if ((dev == FAN) && ((aktdata.temp_i < (float)(cust_params[T_IN_MIN] - TEMP_HYSTERESIS)) || (aktdata.temp_o < (float)(cust_params[T_OUT_MIN] - TEMP_HYSTERESIS)))) {  // Temperaturen zu niedrig
@@ -841,7 +847,7 @@ unsigned long current_runtime = 0;
 }
 
 // Gerät stoppen
-void dev_stop(uint8_t is_stop, uint8_t mydev) {
+void dev_stop(bool is_stop, uint8_t mydev) {
   if (is_dev_on[mydev]) {
     lcd.setCursor(0, 1);
     if (is_stop) {
