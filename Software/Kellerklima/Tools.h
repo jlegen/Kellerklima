@@ -33,7 +33,7 @@ void menuCallback(menuAction_t action) {
 }
  */
 
-extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miSW7,miSW8,miBack,miT1,miT2,miExit;
+extern const Menu::Item_t miSettings1,miSettings2,miSetting3,miSL1,miSL2,miSL3,miSL4,miSL5,miSW1,miSW2,miSW3,miSW4,miSW5,miSW6,miSW7,miSW8,miSW9,miSW10,miBack,miT1,miT2,miExit;
 void set_relay(uint8_t relay, bool trig);
 void trigger_backlight(void);
 
@@ -46,11 +46,13 @@ void getItemValuePointer(const Menu::Item_t *mi, int16_t **i) {
   if (mi == &miSW1)         *i = &cust_params[HUM_MAX];
   if (mi == &miSW2)         *i = &cust_params[T_IN_MIN];
   if (mi == &miSW3)         *i = &cust_params[T_OUT_MIN];
-  if (mi == &miSW4)         *i = &cust_params[HYSTERESIS_HUM];
-  if (mi == &miSW5)         *i = &cust_params[TAUPUNKTDIFF_ON];
-  if (mi == &miSW6)         *i = &cust_params[TAUPUNKTDIFF_OFF];
-  if (mi == &miSW7)         *i = &cust_params[INTERVAL];
-  if (mi == &miSW8)         *i = &cust_params[MAX_PER_24H];
+  if (mi == &miSW4)         *i = &cust_params[T_IN_OFFSET];
+  if (mi == &miSW5)         *i = &cust_params[T_OUT_OFFSET];
+  if (mi == &miSW6)         *i = &cust_params[HYSTERESIS_HUM];
+  if (mi == &miSW7)         *i = &cust_params[TAUPUNKTDIFF_ON];
+  if (mi == &miSW8)         *i = &cust_params[TAUPUNKTDIFF_OFF];
+  if (mi == &miSW9)         *i = &cust_params[INTERVAL];
+  if (mi == &miSW10)        *i = &cust_params[MAX_PER_24H];
 }
 
 // format LCD output value, no. decimals, length of number, padded with " "
@@ -143,6 +145,9 @@ int16_t  *iValue = NULL;
 char *buf = "";
 bool is_bool = (engine->currentItem == &miSL3 || engine->currentItem == &miSL4 || engine->currentItem == &miSL5);
 bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 || engine->currentItem == &miSW4 || engine->currentItem == &miSW5);
+bool is_humi = (engine->currentItem == &miSW1 || engine->currentItem == &miSW6 );
+bool is_kelv = (engine->currentItem == &miSW7 || engine->currentItem == &miSW8 );
+bool is_time = (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 || engine->currentItem == &miSW10);
 
   if (action == Menu::actionDisplay) {
     bool initial = (systemState != State::Edit);
@@ -165,7 +170,7 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
         encAbsolute = -30;
       }
     }
-    if (engine->currentItem == &miSW1) {
+    if (is_humi) {
       buf = "%";
       if (encAbsolute > 99) {
         encAbsolute=99;
@@ -173,9 +178,17 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
         encAbsolute = 0;
       }
     }
+    if (is_kelv) {
+      buf = "\337K";
+      if (encAbsolute > 20) {
+        encAbsolute = 20;
+      } else if (encAbsolute < -10) {
+        encAbsolute = -10;
+      }
+    }
 
     // Laufzeiten
-    if (engine->currentItem == &miSL1 || engine->currentItem == &miSL2 || engine->currentItem == &miSW8) {
+    if (is_time) {
       buf="min";
       if (encAbsolute > 10080) { // 7 Tage
         encAbsolute = 10080;
@@ -185,7 +198,7 @@ bool is_temp = (engine->currentItem == &miSW2 || engine->currentItem == &miSW3 |
     }
 
     // Messintervall
-    if (engine->currentItem == &miSW7) {
+    if (engine->currentItem == &miSW9) {
       buf="sec";
       if (encAbsolute > 7200) { // 2h
         encAbsolute = 7200;
@@ -275,12 +288,14 @@ MenuItem(miSettings2, "Setup Daten",   miSettings3,    miSettings1,    miExit,  
   MenuItem(miSW1,    "Schwellwert rH%",miSW2,          Menu::NullItem, miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW2,    "Mindesttemp. S1",miSW3,          miSW1,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW3,    "Mindesttemp. S2",miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW4,    "Hysterese Hum.%",miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW5,    "dTaupunkt Ein",  miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "dTaupunkt Aus",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW7,    "Messintervall",  miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW8,    "Laufzeit/Tag",   miSWBack,       miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW8,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW4,    "Offset Temp. S1",miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW5,    "Offset Temp. S2",miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW6,    "Hysterese Hum.%",miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "dTaupunkt Ein",  miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW8,    "dTaupunkt Aus",  miSW9,          miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW9,    "Messintervall",  miSW10,          miSW8,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW10,    "Laufzeit/Tag",   miSWBack,       miSW9,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Zur\365ck \02",  Menu::NullItem, miSW10,          miSettings2, Menu::NullItem, menuBack);
 
 //MenuItem(miSettings3, "Schalten",      miBack,         miSettings2,    miExit,      miT1,          menuDummy);
 MenuItem(miSettings3, "Schalten",      Menu::NullItem, miSettings2,    miExit,      miT1,          menuDummy);
@@ -306,12 +321,14 @@ MenuItem(miSettings2, "Setup Params",   miSettings3,    miSettings1,    miExit, 
   MenuItem(miSW1,    "Trigger rH%",     miSW2,          Menu::NullItem, miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW2,    "min. temp. S1",   miSW3,          miSW1,          miSettings2, Menu::NullItem, menueditNumericalValue);
   MenuItem(miSW3,    "min. temp. S2",   miSW4,          miSW2,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW4,    "Hysteresis On",   miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW5,    "Dewp. diff On",   miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW6,    "Dewp. diff Off",  miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW7,    "Meas. interval",  miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSW8,    "Runtime/Day",     miSWBack,       miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
-  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW8,          miSettings2, Menu::NullItem, menuBack);
+  MenuItem(miSW4,    "Offset temp. S1", miSW5,          miSW3,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW5,    "Offset temp. S2", miSW6,          miSW4,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW6,    "Hysteresis On",   miSW7,          miSW5,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW7,    "Dewp. diff On",   miSW8,          miSW6,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW8,    "Dewp. diff Off",  miSW9,          miSW7,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW9,    "Meas. interval",  miSW10,         miSW8,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSW10,    "Runtime/Day",    miSWBack,       miSW9,          miSettings2, Menu::NullItem, menueditNumericalValue);
+  MenuItem(miSWBack, "Back \02",        Menu::NullItem, miSW10,          miSettings2, Menu::NullItem, menuBack);
 
 MenuItem(miSettings3, "Switch on/off",  miBack,           miSettings2,       miExit,      miT1,          menuDummy);
   MenuItem(miT1,      "Fan",            miT2,             Menu::NullItem,    miSettings3, Menu::NullItem, menuOnOff);
@@ -493,6 +510,12 @@ void sprint_report(void) {
   OUT_SER(cust_params[T_OUT_MIN]);
   OUT_SERLN(F("°C"));
 
+  OUT_SER(F("Temp. Offset Innen: "));
+  OUT_SER(cust_params[T_IN_OFFSET]);
+  OUT_SER(F("°C \tAussen: "));
+  OUT_SER(cust_params[T_OUT_OFFSET]);
+  OUT_SERLN(F("°C"));
+
   OUT_SERLN(F("\t+-+-+-+ 'hilfe' eingeben fuer Befehlsuebersicht +-+-+-+"));
   
   OUT_SERLN(F("\n----------------------------------------------------------------"));
@@ -517,7 +540,7 @@ void sprint_report(void) {
 // serial command input (testing, remote control)
 uint8_t get_cmd(String arg) {
  String cmd = arg.substring(0, arg.indexOf("="));
- char buf[6];
+ char buf[8];
  for (int i=0; i<(ARRAY_SIZE(CMDS)); i++) {
   strcpy_P(buf, (char *)pgm_read_word(&(CMDS[i])));
   if (cmd == buf) {

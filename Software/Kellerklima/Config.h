@@ -115,8 +115,10 @@ const PROGMEM char cmd_6[] = {"int"};
 const PROGMEM char cmd_7[] = {"hysthum"};
 const PROGMEM char cmd_8[] = {"dtauon"};
 const PROGMEM char cmd_9[] = {"dtauoff"};
-const PROGMEM char cmd_10[] = {"save"};
-const PROGMEM char cmd_11[] = {"hilfe"};
+const PROGMEM char cmd_10[] = {"offseti"};
+const PROGMEM char cmd_11[] = {"offseto"};
+const PROGMEM char cmd_12[] = {"save"};
+const PROGMEM char cmd_13[] = {"hilfe"};
 
 const PROGMEM char hlp_0[] = {"Luefter r1=1: an | r1=0: aus"};
 const PROGMEM char hlp_1[] = {"Entfeuchter r2=1: an | r2=0: aus"};
@@ -128,12 +130,14 @@ const PROGMEM char hlp_6[] = {"Messintervall (Sek.)"};
 const PROGMEM char hlp_7[] = {"Hysterese Feuchteschwellwert (%)"};
 const PROGMEM char hlp_8[] = {"Taupunktdifferenz ein (K)"};
 const PROGMEM char hlp_9[] = {"Taupunktdifferenz aus (K)"};
-const PROGMEM char hlp_10[] = {"Speichern aller Parameter"};
-const PROGMEM char hlp_11[] = {""};
+const PROGMEM char hlp_10[] = {"Temperaturoffset 'Innen' (K)"};
+const PROGMEM char hlp_11[] = {"Temperaturoffset 'Aussen' (K)"};
+const PROGMEM char hlp_12[] = {"Speichern aller Parameter"};
+const PROGMEM char hlp_13[] = {""};
 #endif
 
-const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8,cmd_9,cmd_10,cmd_11};
-const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8,hlp_9,hlp_10,hlp_11};
+const char *const CMDS[] PROGMEM = {cmd_0,cmd_1,cmd_2,cmd_3,cmd_4,cmd_5,cmd_6,cmd_7,cmd_8,cmd_9,cmd_10,cmd_11,cmd_12,cmd_13};
+const char *const HELP[] PROGMEM = {hlp_0,hlp_1,hlp_2,hlp_3,hlp_4,hlp_5,hlp_6,hlp_7,hlp_8,hlp_9,hlp_10,hlp_11,hlp_12,hlp_13};
 
 #ifdef GERMAN
 const char *GNAME[] = {"L\365fter", "Entfeuchter"};
@@ -265,10 +269,10 @@ struct Climate {
 };
 Climate aktdata;
 
-static char is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
+static bool is_dev_on[] = { false, false } ; // Lüfter/Entfeuchter aktiv
 uint8_t act_symb = 0; // show activity symbol
-uint8_t lcd_on = false;    // is backlight on?
-uint8_t control_override = false; // override controller by manual switch
+bool lcd_on = false;    // is backlight on?
+bool control_override = false; // override controller by manual switch
 
 //
 // Kellerparameter
@@ -286,7 +290,8 @@ uint8_t control_override = false; // override controller by manual switch
 #define INTERVAL         10 //Messintervall (seconds), default=60s
 #define MAX_PER_24H      11 //max. Lüfterlaufzeit pro 24h (min.)
 #define TAUPUNKTDIFF_OFF 12 //untere Taupunktdifferenz K
-// for now: use TAUPUNKTDIFF/2 as hysteresis
+#define T_IN_OFFSET      13 //Korrekturwert Innentemperatur
+#define T_OUT_OFFSET     14 //Korrekturwert Aussentemperatur
 
 /* source1: https://www.schwille.de/wp-content/uploads/100-720-Taupunkt-L%C3%BCftungssteuerung.pdf
    Die Steuerung arbeitet nur nach der eingestellten Taupunktdifferenz (absolute Feuchtigkeit). Die Werkseinstellung ist bei 5°C Taupunkt. 
@@ -310,7 +315,7 @@ uint8_t control_override = false; // override controller by manual switch
 
 
 // initial defaults
-int16_t cust_params[13] = {60, 12, 4,  2, 3, 0, 120, 120, 0, 1, 60, 360, 1};
+int16_t cust_params[15] = {60, 12, 4,  2, 3, 0, 120, 120, 0, 1, 60, 360, 1,0,0};
 int16_t last_value = 0;
 
 // Encoder drehen = Anzeige durchschalten

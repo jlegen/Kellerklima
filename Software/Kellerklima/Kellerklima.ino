@@ -475,9 +475,15 @@ int16_t *iValue;
      cust_params[TAUPUNKTDIFF_OFF] = val;
     break;
     case 10:
-     write_to_eeprom();
+     cust_params[T_IN_OFFSET] = val;
     break;
     case 11:
+     cust_params[T_OUT_OFFSET] = val;
+    break;
+    case 12:
+     write_to_eeprom();
+    break;
+    case 13:
      out_help();
     break;
   }
@@ -532,11 +538,11 @@ void do_measure(void) {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     aktdata.hum_i  = roundFloat(dht_i.readHumidity(), DECIMALS);
-    aktdata.temp_i = roundFloat(dht_i.readTemperature(), DECIMALS);
+    aktdata.temp_i = roundFloat(dht_i.readTemperature(), DECIMALS) + (float)cust_params[T_IN_OFFSET];;
 #endif
 #ifdef DHTPIN_O
     aktdata.hum_o  = roundFloat(dht_o.readHumidity(), DECIMALS);
-    aktdata.temp_o = roundFloat(dht_o.readTemperature(), DECIMALS);
+    aktdata.temp_o = roundFloat(dht_o.readTemperature(), DECIMALS) + (float)cust_params[T_OUT_OFFSET];;
 #endif
 #ifdef I2C_SENSOR1 
   // SHT31, BME280
@@ -545,7 +551,7 @@ void do_measure(void) {
    sens_i.readSensor();
   #endif
   aktdata.hum_i  = roundFloat(sens_i.getHumidity(), DECIMALS);
-  aktdata.temp_i = roundFloat(sens_i.getTemperature_C(), DECIMALS);
+  aktdata.temp_i = roundFloat(sens_i.getTemperature_C(), DECIMALS) + (float)cust_params[T_IN_OFFSET];;
   //dew_i2 = roundFloat(sens_i.getDewPoint(), DECIMALS);
 #endif
 #ifdef I2C_SENSOR2
@@ -553,7 +559,7 @@ void do_measure(void) {
    sens_o.readSensor();
   #endif
   aktdata.hum_o  = roundFloat(sens_o.getHumidity(), DECIMALS);
-  aktdata.temp_o = roundFloat(sens_o.getTemperature_C(), DECIMALS);
+  aktdata.temp_o = roundFloat(sens_o.getTemperature_C(), DECIMALS) + (float)cust_params[T_OUT_OFFSET];;
   //dew_o2 = roundFloat(sens_o.getDewPoint(), DECIMALS);
 #endif
 
@@ -719,20 +725,20 @@ unsigned long current_runtime = 0;
 
   // do not start any device if indoor humidity is too low; stop device if running (using same hysteresis as for dew point)
   // device is not running & hum_i is lower than trigger => stop processing 
-  if ((is_dev_on[dev] == false) && (aktdata.hum_i <= cust_params[HUM_MAX])) {
+  if (!is_dev_on[dev]  && (aktdata.hum_i <= cust_params[HUM_MAX])) {
     DEBUG_PRINTLN(F("No device running, and HUM low enough."));
     return(false);
   }
 
   // device is not running & hum_i is greater than trigger => pass on to switch decision 
-  if ((is_dev_on[dev] == false) && (aktdata.hum_i > (float)cust_params[HUM_MAX])) {
+  if (!is_dev_on[dev] && (aktdata.hum_i > (float)cust_params[HUM_MAX])) {
     // is true = pass through
     DEBUG_PRINT(F("\nFeuchteschwellwert ueberschritten - pruefe Einschaltbedingungen: "));
     DEBUG_PRINTLN(GNAME[dev]);
   }
 
   // device is running, and hum_i is below trigger incl. hysteresis => switch off
-  if ((is_dev_on[dev] == true) && (aktdata.hum_i < (float)(cust_params[HUM_MAX] - cust_params[HYSTERESIS_HUM]))) {
+  if (is_dev_on[dev] && (aktdata.hum_i < (float)(cust_params[HUM_MAX] - cust_params[HYSTERESIS_HUM]))) {
     // switch off
     lcd.clear();
     FPL(MSGOK);
